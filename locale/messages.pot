@@ -1,0 +1,107 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2018-04-04 09:15+0200\n"
+"PO-Revision-Date: 2018-04-04 09:18+0200\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.0.6\n"
+"X-Poedit-Basepath: ..\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-KeywordsList: gT\n"
+"Last-Translator: Denis Chenu <contact@sondages.pro>\n"
+"Language: en\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: surveyChaining.php:55
+msgid "survey chaining"
+msgstr ""
+
+#: surveyChaining.php:117 surveyChaining.php:157 surveyChaining.php:181
+msgid "None"
+msgstr ""
+
+#: surveyChaining.php:119
+msgid "Next survey (by default)."
+msgstr ""
+
+#: surveyChaining.php:125 surveyChaining.php:189
+msgid "Send email to"
+msgstr ""
+
+#: surveyChaining.php:126 surveyChaining.php:190
+msgid "You can use Expression Manager with question code"
+msgstr ""
+
+#: surveyChaining.php:132 surveyChaining.php:196
+msgid "Mail template to use"
+msgstr ""
+
+#: surveyChaining.php:134 surveyChaining.php:198
+msgid "Invitation (Default)"
+msgstr ""
+
+#: surveyChaining.php:137 surveyChaining.php:201
+msgid "Invitation"
+msgstr ""
+
+#: surveyChaining.php:138 surveyChaining.php:202
+msgid "Reminder"
+msgstr ""
+
+#: surveyChaining.php:139 surveyChaining.php:203
+msgid "Register"
+msgstr ""
+
+#: surveyChaining.php:140 surveyChaining.php:204
+msgid "Admin notification"
+msgstr ""
+
+#: surveyChaining.php:141 surveyChaining.php:205
+msgid "Admin detailed response"
+msgstr ""
+
+#: surveyChaining.php:146
+msgid "Next survey"
+msgstr ""
+
+#: surveyChaining.php:159
+msgid "Question for next surveys."
+msgstr ""
+
+#: surveyChaining.php:162
+msgid ""
+"Only single choice question type can be used for survey selection. The list "
+"of available answer update after save this value."
+msgstr ""
+
+#: surveyChaining.php:165
+msgid "Question for conditionnal surveys"
+msgstr ""
+
+#: surveyChaining.php:183
+msgid "Next survey."
+msgstr ""
+
+#: surveyChaining.php:210
+#, php-format
+msgid "Conditionnal survey (%s)"
+msgstr ""
+
+#: surveyChaining.php:217
+msgid "Survey chaining settings"
+msgstr ""
+
+#: views/settings.php:25 views/settings.php:34
+msgid "Save"
+msgstr ""
+
+#: views/settings.php:27 views/settings.php:36
+msgid "Save and close"
+msgstr ""
+
+#: views/settings.php:29 views/settings.php:38
+msgid "Close"
+msgstr ""
