@@ -96,7 +96,21 @@ class surveyChaining extends PluginBase {
             /* Don't update old choice only of choice are updated */
             $oldChoice = $this->get('choiceQuestion', 'Survey', $surveyId,null);
             $this->set('choiceQuestion', App()->getRequest()->getPost('choiceQuestion'), 'Survey', $surveyId);
-            
+            if($this->get('choiceQuestion', 'Survey', $surveyId,null)) {
+                $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
+                $oQuestion = Question::model()->find("title=:title and language=:language",array(":title"=>$title,":language"=>$oSurvey->language));
+                $aoAnswers = Answer::model()->findAll(array(
+                    'condition' => "qid=:qid and language=:language",
+                    'order' => 'sortorder ASC',
+                    'params' => array(":qid"=>$oQuestion->qid,":language"=>$oSurvey->language)
+                ));
+                foreach($aoAnswers as $oAnswers) {
+                    $code = $oAnswers->code;
+                    $this->set('nextSurvey_'.$code, App()->getRequest()->getPost('nextSurvey_'.$code), 'Survey', $surveyId);
+                    $this->set('nextEmail_'.$code, App()->getRequest()->getPost('nextEmail_'.$code), 'Survey', $surveyId);
+                    $this->set('nextMessage_'.$code, App()->getRequest()->getPost('nextMessage_'.$code), 'Survey', $surveyId);
+                }
+            }
             if(App()->getRequest()->getPost('save'.get_class($this)=='redirect')) {
                 Yii::app()->getController()->redirect(Yii::app()->getController()->createUrl('admin/survey',array('sa'=>'view','surveyid'=>$surveyId)));
             }
