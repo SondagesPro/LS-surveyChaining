@@ -29,6 +29,10 @@ class surveyChaining extends PluginBase {
 
         $this->subscribe('beforeToolsMenuRender');
 
+        $this->subscribe('afterSurveyComplete');
+
+        Yii::setPathOfAlias('surveyChaining', dirname(__FILE__));
+
     }
 
     public function beforeSurveySettings()
@@ -52,7 +56,7 @@ class surveyChaining extends PluginBase {
         $event = $this->getEvent();
         $surveyId = $event->get('surveyId');
         $aMenuItem = array(
-            'label' => $this->gT('survey chaining'),
+            'label' => $this->gT('Survey chaining'),
             'iconClass' => 'fa fa-recycle',
             'href' => Yii::app()->createUrl(
                 'admin/pluginhelper',
@@ -115,6 +119,7 @@ class surveyChaining extends PluginBase {
                 Yii::app()->getController()->redirect(Yii::app()->getController()->createUrl('admin/survey',array('sa'=>'view','surveyid'=>$surveyId)));
             }
         }
+
         $aData=array();
         $aData['warningString'] = null;
         $aSettings=array();
@@ -124,6 +129,20 @@ class surveyChaining extends PluginBase {
             ->permission(Yii::app()->user->getId())
             ->with('defaultlanguage')
             ->findAll(array('order'=>'surveyls_title'));
+        $sHelpSurveyTable = null;
+        $iNextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
+        
+        if($iNextSurvey) {
+            $oNextSurvey = Survey::model()->findByPk($iNextSurvey);
+            if(!$oNextSurvey) {
+                $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-warning"),$this->gT("Warning : previous survey selected don't exist currently."));
+            }
+            if($oNextSurvey) {
+                if(!$oNextSurvey->getHasTokensTable()) {
+                    $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token table, you must enable token before."));
+                }
+            }
+        }
         $aNextSettings = array(
             'nextSurvey' => array(
                 'type'=>'select',
@@ -133,6 +152,7 @@ class surveyChaining extends PluginBase {
                 'label'=>$this->gT("Next survey (by default)."),
                 'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                 'current'=>$this->get('nextSurvey', 'Survey', $surveyId,null),
+                'help' => $sHelpSurveyTable,
             ),
             'nextEmail' => array(
                 'type' => 'string',
@@ -164,6 +184,7 @@ class surveyChaining extends PluginBase {
         $oQuestionCriteria->order = "group_order ASC, question_order ASC";
         $oQuestionCriteria->addInCondition("type",['L','O','!']);
         $oaQuestion = Question::model()->with('groups')->findAll($oQuestionCriteria);
+
         $aNextQuestionSettings = array(
             'choiceQuestion' => array(
                 'type'=>'select',
@@ -171,13 +192,22 @@ class surveyChaining extends PluginBase {
                     'empty'=>$this->gT("None"),
                 ),
                 'label'=>$this->gT("Question for next surveys."),
-                'options'=>CHtml::listData($oaQuestion,'title','question'),
+                'options'=>CHtml::listData($oaQuestion,'title',
+                    function($oQuestion) {
+                        return "[".$oQuestion->title."] ".viewHelper::flatEllipsizeText($oQuestion->question,1,40,"…");
+                    }
+                ),
                 'current'=>$this->get('choiceQuestion', 'Survey', $surveyId,null),
                 'help' => $this->gT("Only single choice question type can be used for survey selection. The list of available answer update after save this value."),
             ),
         );
         $aSettings[$this->gT("Question for conditionnal surveys")] = $aNextQuestionSettings;
-
+        $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
+        /* Text for default */
+        $sDefaultText = $this->gT("None");
+        if(!empty($oNextSurvey)) {
+            $sDefaultText = $this->gT("Current default");
+        }
         if($this->get('choiceQuestion', 'Survey', $surveyId,null)) {
             $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
             $oQuestion = Question::model()->find("title=:title and language=:language",array(":title"=>$title,":language"=>$oSurvey->language));
@@ -192,7 +222,7 @@ class surveyChaining extends PluginBase {
                     'nextSurvey_'.$code => array(
                         'type'=>'select',
                         'htmlOptions'=>array(
-                            'empty'=>$this->gT("None"),
+                            'empty'=>$sDefaultText,
                         ),
                         'label'=>$this->gT("Next survey."),
                         'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
@@ -233,6 +263,42 @@ class surveyChaining extends PluginBase {
         $aData['assetUrl']=Yii::app()->assetManager->publish(dirname(__FILE__) . '/assets/');
         $aSettings=array();
         $content = $this->renderPartial('settings', $aData, true);
+
         return $content;
+    }
+
+    /**
+     * Action to do when survey is completed
+     */
+    public function afterSurveyComplete()
+    {
+        $nextSurvey = $oNextSurvey = null;
+        $surveyId = $this->getEvent()->get('surveyId');
+        $responseId = $this->getEvent()->get('responseId');
+        $choiceQuestion = $this->get('choiceQuestion', 'Survey', $surveyId,null);
+        
+        if($choiceQuestion) {
+            // Find current value of choiceQuestion -if exist)
+
+            // set $nextSurvey if need action.
+        }
+        if(!$nextSurvey) {
+            $nextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
+        }
+        if(!$nextSurvey) {
+            return;
+        }
+        $oNextSurvey = Survey::model()->findByPk($nextSurvey);
+        if(!$oNextSurvey) {
+            Yii::app()->log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            return;
+        }
+        if(!$oNextSurvey->getHasTokensTable()) {
+            Yii::app()->log($this->gT("Invalid survey selected for $surveyId (No token table)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            return;
+        }
+        /* Ok we get here : do action */
+        $currentResponse = $this->pluginManager->getAPI()->getResponse($surveyId, $responseId);
+
     }
 }
