@@ -141,6 +141,9 @@ class surveyChaining extends PluginBase {
                 if(!$oNextSurvey->getHasTokensTable()) {
                     $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token table, you must enable token before."));
                 }
+                if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y") {
+                    $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token answer persistance enable."));
+                }
             }
         }
         $aNextSettings = array(
@@ -202,7 +205,7 @@ class surveyChaining extends PluginBase {
             ),
         );
         $aSettings[$this->gT("Question for conditionnal surveys")] = $aNextQuestionSettings;
-        $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
+
         /* Text for default */
         $sDefaultText = $this->gT("None");
         if(!empty($oNextSurvey)) {
@@ -276,7 +279,9 @@ class surveyChaining extends PluginBase {
         $surveyId = $this->getEvent()->get('surveyId');
         $responseId = $this->getEvent()->get('responseId');
         $choiceQuestion = $this->get('choiceQuestion', 'Survey', $surveyId,null);
-        
+        $nextEmailSetting = 'nextEmail';
+        $nextMessageSetting = 'nextMessage';
+
         if($choiceQuestion) {
             // Find current value of choiceQuestion -if exist)
 
@@ -290,15 +295,43 @@ class surveyChaining extends PluginBase {
         }
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
-            Yii::app()->log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            Yii::log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
             return;
         }
         if(!$oNextSurvey->getHasTokensTable()) {
-            Yii::app()->log($this->gT("Invalid survey selected for $surveyId (No token table)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            Yii::log($this->gT("Invalid survey selected for $surveyId (No token table)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
             return;
         }
         /* Ok we get here : do action */
         $currentResponse = $this->pluginManager->getAPI()->getResponse($surveyId, $responseId);
-
+        //~ $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
+        $nextCodeToColumn =  array_flip(\surveyChaining\surveyCodeHelper::getColumnsToCode($nextSurvey));
+        $nextExistingCodeToColumn = array_intersect_key($nextCodeToColumn,$currentResponse);
+        if(empty($nextExistingCodeToColumn)) {
+            Yii::log($this->gT("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            return;
+        }
+        /* Create the token */
+        $oToken = Token::create($nextSurvey);
+        $oToken->validfrom = date("Y-m-d H:i:s");
+        $oToken->email = $this->get($nextEmailSetting, 'Survey', $surveyId,"");
+        $oToken->generateToken();
+        /* @todo : set attribute */
+        if(!$oToken->save()) {
+            Yii::log($this->gT("Unable to create token for $nextSurvey"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete");
+            return;
+        }
+        
+        $token = $oToken->token;
+        $oReponse = Response::create($nextSurvey);
+        foreach($nextExistingCodeToColumn as $code=>$column) {
+            $oReponse->$column = $currentResponse[$code];
+        }
+        $oReponse->startlanguage = Yii::app()->getLanguage();
+        $oReponse->token = $token;
+        if(!$oReponse->save()) {
+            Yii::log($this->gT("Unable to save response for token $token for $nextSurvey"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete");
+            return;
+        }
     }
 }
