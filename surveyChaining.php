@@ -314,8 +314,13 @@ class surveyChaining extends PluginBase {
         /* Create the token */
         $oToken = Token::create($nextSurvey);
         $oToken->validfrom = date("Y-m-d H:i:s");
-        $oToken->email = $this->get($nextEmailSetting, 'Survey', $surveyId,"");
+        $oToken->email = trim(LimeExpressionManager::ProcessStepString($this->get($nextEmailSetting, 'Survey', $surveyId,""),array(),3,null));
         $oToken->generateToken();
+        $language = App()->getLanguage();
+        if(!in_array($language,$oNextSurvey->getAllLanguages())) {
+            $language = $oNextSurvey->language;
+        }
+        $oToken->language;
         /* @todo : set attribute */
         if(!$oToken->save()) {
             Yii::log($this->gT("Unable to create token for $nextSurvey"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete");
@@ -323,15 +328,109 @@ class surveyChaining extends PluginBase {
         }
         
         $token = $oToken->token;
-        $oReponse = Response::create($nextSurvey);
+        $oResponse = Response::create($nextSurvey);
         foreach($nextExistingCodeToColumn as $code=>$column) {
-            $oReponse->$column = $currentResponse[$code];
+            $oResponse->$column = $currentResponse[$code];
         }
-        $oReponse->startlanguage = Yii::app()->getLanguage();
-        $oReponse->token = $token;
-        if(!$oReponse->save()) {
+        $oResponse->startlanguage = $language;
+        $oResponse->token = $token;
+        if(!$oResponse->save()) {
             Yii::log($this->gT("Unable to save response for token $token for $nextSurvey"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete");
             return;
         }
+        /* Get email and send */
+        $nextMessage = $this->get($nextMessageSetting, 'Survey', $surveyId, "invite");
+        if($nextMessage==='') {
+            $nextMessage = 'invite';
+        }
+        if($oToken->email && $nextMessage) {
+            $this->_sendSurveyChainingEmail($nextSurvey,$oToken,$nextMessage);
+        }
+    }
+
+    /**
+     * send email with SURVEYURL to new survey
+     * @param integer $iSurvey
+     * @param Object $oToken \Token
+     * @param integer $responseId
+     * @param string $mailType
+     * @return boolean
+     */
+    private function _sendSurveyChainingEmail($nextSurvey,$oToken,$mailType = 'invite') {
+        global $maildebug;
+        if(!in_array($mailType,array('invite','remind','register','confirm','admin_notification','admin_responses')) ) {
+            if(defined('YII_DEBUG') && YII_DEBUG) {
+                throw new Exception("Invalid mail type set ({$mailType}).");
+            }
+            return false;
+        }
+        $oSurvey = Survey::model()->findByPk($nextSurvey);
+        $sLanguage = $oToken->language;
+        if(!in_array($sLanguage,$oSurvey->getAllLanguages())) {
+            $sLanguage = $oSurvey->language;
+        }
+        $oSurveyLanguage = SurveyLanguageSetting::model()->findByPk(array('surveyls_survey_id'=>$nextSurvey,'surveyls_language'=>$sLanguage));
+
+        $attSubject = 'surveyls_email_'.$mailType.'_subj';
+        $attMessage = 'surveyls_email_'.$mailType;
+        $sSubject = $oSurveyLanguage->$attSubject;
+        $sMessage = $oSurveyLanguage->$attMessage;
+        $aReplacementFields=array();
+        $aReplacementFields["ADMINNAME"]=$oSurvey->admin;
+        $aReplacementFields["ADMINEMAIL"]=$oSurvey->adminemail;
+        $aReplacementFields["SURVEYNAME"]=$oSurveyLanguage->surveyls_title;
+        $aReplacementFields["SURVEYDESCRIPTION"]=$oSurveyLanguage->surveyls_description;
+        $aReplacementFields["EXPIRY"]=$oSurvey->expires;
+        foreach($oToken->attributes as $attribute=>$value){
+            $aReplacementFields[strtoupper($attribute)]=$value;
+        }
+        $sToken=$oToken->token;
+        $useHtmlEmail = ($oSurvey->htmlemail == 'Y');
+        
+        //~ $sSubject=preg_replace("/{TOKEN:([A-Z0-9_]+)}/","{"."$1"."}",$sSubject);
+        //~ $sMessage=preg_replace("/{TOKEN:([A-Z0-9_]+)}/","{"."$1"."}",$sMessage);
+        $aReplacementFields["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index/sid/{$nextSurvey}",array('lang'=>$sLanguage,'token'=>$sToken));
+        $aReplacementFields["OPTOUTURL"] = Yii::app()->getController()->createAbsoluteUrl("/optout/tokens/surveyid/{$nextSurvey}",array('langcode'=>$sLanguage,'token'=>$sToken));
+        $aReplacementFields["OPTINURL"] = Yii::app()->getController()->createAbsoluteUrl("/optin/tokens/surveyid/{$nextSurvey}",array('langcode'=>$sLanguage,'token'=>$sToken));
+        foreach(array('OPTOUT', 'OPTIN', 'SURVEY') as $key) {
+            $url = $aReplacementFields["{$key}URL"];
+            if ($useHtmlEmail) {
+                $aReplacementFields["{$key}URL"] = "<a href='{$url}'>" . htmlspecialchars($url) . '</a>';
+            }
+            $sSubject = str_replace("@@{$key}URL@@", $url, $sSubject);
+            $sMessage = str_replace("@@{$key}URL@@", $url, $sMessage);
+        }
+        $sSubject = LimeExpressionManager::ProcessStepString($sSubject,$aReplacementFields,3,1);
+        $sMessage = LimeExpressionManager::ProcessStepString($sMessage,$aReplacementFields,3,1);
+        $mailFromName = $oSurvey->admin;
+        $mailFromMail = empty($oSurvey->adminemail) ? App()->getConfig('siteadminemail') : $oSurvey->adminemail;
+        $sFrom = !empty($mailFromName) ? "{$mailFromName} <{$mailFromMail}>" : $mailFromMail;
+        $sBounce=$oSurvey->bounce_email;
+        /* Get array (EM replaced) of to */
+        $aEmailTo = array();
+        $sSendTo = $oToken->email;
+        $aRecipient = explode(";", LimeExpressionManager::ProcessStepString($sSendTo,$aReplacementFields,3,1));
+        foreach ($aRecipient as $sRecipient) {
+            $sRecipient = trim($sRecipient);
+            if (validateEmailAddress($sRecipient)) {
+                $aEmailTo[] = $sRecipient;
+            }
+        }
+        $sended = false;
+        if(!empty($aEmailTo)) {
+            foreach($aEmailTo as $sEmail) {
+                if(SendEmailMessage($sMessage, $sSubject, $sEmail, $sFrom, App()->getConfig("sitename"), $useHtmlEmail, $sBounce)) {
+                    $sended = true;
+                }
+            }
+        } else {
+            Yii::log($this->gT("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete._sendSurveyChainingEmail");
+        }
+        if($sended) {
+            $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
+            $oToken->save();
+            return true;
+        }
+        return false;
     }
 }
