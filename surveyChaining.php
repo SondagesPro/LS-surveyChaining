@@ -5,7 +5,7 @@
  * @author Denis Chenu <denis@sondages.pro>
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @license GPL v3
- * @version 0.0.0
+ * @version 0.9.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -282,10 +282,18 @@ class surveyChaining extends PluginBase {
         $nextEmailSetting = 'nextEmail';
         $nextMessageSetting = 'nextMessage';
 
+        $currentResponse = $this->pluginManager->getAPI()->getResponse($surveyId, $responseId);
+        $currentChoice = null;
         if($choiceQuestion) {
             // Find current value of choiceQuestion -if exist)
-
-            // set $nextSurvey if need action.
+            if(!empty($currentResponse[$choiceQuestion])) {
+                $currentChoice = strval($currentResponse[$choiceQuestion]);
+                $nextSurvey = $this->get('nextSurvey_'.$currentChoice, 'Survey', $surveyId,null);
+                if($nextSurvey) {
+                    $nextEmailSetting = 'nextEmail_'.$currentChoice;
+                    $nextMessageSetting = 'nextMessage_'.$currentChoice;
+                }
+            }
         }
         if(!$nextSurvey) {
             $nextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
@@ -293,6 +301,7 @@ class surveyChaining extends PluginBase {
         if(!$nextSurvey) {
             return;
         }
+        Yii::log($this->gT("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_TRACE,'plugin.'.get_class($this).".afterSurveyComplete");
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
             Yii::log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
@@ -303,7 +312,6 @@ class surveyChaining extends PluginBase {
             return;
         }
         /* Ok we get here : do action */
-        $currentResponse = $this->pluginManager->getAPI()->getResponse($surveyId, $responseId);
         //~ $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
         $nextCodeToColumn =  array_flip(\surveyChaining\surveyCodeHelper::getColumnsToCode($nextSurvey));
         $nextExistingCodeToColumn = array_intersect_key($nextCodeToColumn,$currentResponse);
@@ -311,6 +319,7 @@ class surveyChaining extends PluginBase {
             Yii::log($this->gT("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
             return;
         }
+        /* @TODO : usage without token enable survey */
         /* Create the token */
         $oToken = Token::create($nextSurvey);
         $oToken->validfrom = date("Y-m-d H:i:s");
@@ -340,11 +349,15 @@ class surveyChaining extends PluginBase {
         }
         /* Get email and send */
         $nextMessage = $this->get($nextMessageSetting, 'Survey', $surveyId, "invite");
+        if($currentChoice && $nextMessage==='') {
+            $nextMessage = $this->get('nextMessage', 'Survey', $surveyId, "invite");
+        }
         if($nextMessage==='') {
             $nextMessage = 'invite';
         }
+
         if($oToken->email && $nextMessage) {
-            $this->_sendSurveyChainingEmail($nextSurvey,$oToken,$nextMessage);
+            $this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage);
         }
     }
 
@@ -356,7 +369,7 @@ class surveyChaining extends PluginBase {
      * @param string $mailType
      * @return boolean
      */
-    private function _sendSurveyChainingEmail($nextSurvey,$oToken,$mailType = 'invite') {
+    private function _sendSurveyChainingTokenEmail($nextSurvey,$oToken,$mailType = 'invite') {
         global $maildebug;
         if(!in_array($mailType,array('invite','remind','register','confirm','admin_notification','admin_responses')) ) {
             if(defined('YII_DEBUG') && YII_DEBUG) {
@@ -424,7 +437,7 @@ class surveyChaining extends PluginBase {
                 }
             }
         } else {
-            Yii::log($this->gT("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete._sendSurveyChainingEmail");
+            Yii::log($this->gT("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete._sendSurveyChainingTokenEmail");
         }
         if($sended) {
             $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
