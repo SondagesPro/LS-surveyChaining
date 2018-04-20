@@ -5,7 +5,7 @@
  * @author Denis Chenu <denis@sondages.pro>
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @license GPL v3
- * @version 0.9.0
+ * @version 0.10.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -23,6 +23,18 @@ class surveyChaining extends PluginBase {
     static protected $description = 'Chaining surveys';
     static protected $name = 'surveyChaining';
 
+    /**
+     * @var integer dbversion
+     */
+    var $dbversion = 1;
+
+    /**
+     * @var boolean did this done (see issue in limesurvey)
+     */
+    var $done = false;
+    /* @var boolean can we use reloadAnyResponse */
+    private $reloadAnyResponseExist = false;
+
     public function init() {
         $this->subscribe('beforeSurveySettings');
         $this->subscribe('newSurveySettings');
@@ -30,10 +42,27 @@ class surveyChaining extends PluginBase {
         $this->subscribe('beforeToolsMenuRender');
 
         $this->subscribe('afterSurveyComplete');
-
-        Yii::setPathOfAlias('surveyChaining', dirname(__FILE__));
+        $oPlugin = Plugin::model()->find("name = :name",array("name"=>get_class($this)));
+        if($oPlugin && $oPlugin->active) {
+          $this->_setConfig();
+        }
+        $this->subscribe('afterPluginLoad');
+        $this->subscribe('beforeControllerAction');
 
     }
+
+    /** @inheritdoc **/
+    public function beforeControllerAction()
+    {
+      $this->_setDb();
+    }
+    /** @inheritdoc **/
+    public function afterPluginLoad()
+    {
+        $this->reloadAnyResponseExist = (bool) Yii::getPathOfAlias('reloadAnyResponse');
+        $this->log($this->reloadAnyResponseExist ? "Plugin reloadAnyResponse exist" : "Plugin reloadAnyResponse didn‘t exist",\CLogger::LEVEL_TRACE);
+    }
+
 
     public function beforeSurveySettings()
     {
@@ -44,13 +73,45 @@ class surveyChaining extends PluginBase {
     {
 
     }
-    /** Menu and settings part */
-    /**
-     * see beforeToolsMenuRender event
-     *
-     * @return void
-     */
 
+    /** @inheritdoc **/
+    public function afterModelDelete()
+    {
+        /* Delete related links */
+        if($className == 'SurveyDynamic' || $className == 'Response') {
+            $sid = str_replace(array('{{survey_','}}'),array('',''),$oModel->tableName());
+            $srid = isset($oModel->id) ? $oModel->id : null;
+            if($srid) {
+                $countDeleted = \surveyChaining\models\chainingResponseLink::deleteByResponse($sid,$srid);
+                $this->log("Deleted $countDeleted chainingResponseLink for survey $sid , response $srid",\CLogger::LEVEL_TRACE);
+            }
+        }
+        /* Delete all link when set a survey is deleted */
+        if($className == 'Survey') {
+            $sid = isset($oModel->sid) ? $oModel->sid : null;
+            if($oModel->sid && $oModel->active != 'Y') {
+                $countDeleted = \surveyChaining\models\chainingResponseLink::deleteBySurvey($sid);
+                $this->log("Deleted $countDeleted chainingResponseLink for survey $sid",\CLogger::LEVEL_TRACE);
+            }
+        }
+    }
+
+    /** @inheritdoc **/
+    public function afterModelSave()
+    {
+        $oModel = $this->getEvent()->get('model');
+        $className = get_class($oModel);
+        /* Delete all link when set a survey to inactive (@todo : test it) */
+        if($className == 'Survey') {
+        $sid = isset($oModel->sid) ? $oModel->sid : null;
+            if($oModel->sid && $oModel->active != 'Y') {
+                $countDeleted = \surveyChaining\models\chainingResponseLink::deleteBySurvey($sid);
+                $this->log("Deleted $countDeleted chainingResponseLink for survey $sid",\CLogger::LEVEL_TRACE);
+            }
+        }
+    }
+
+    /** @inheritdoc **/
     public function beforeToolsMenuRender()
     {
         $event = $this->getEvent();
@@ -138,10 +199,10 @@ class surveyChaining extends PluginBase {
                 $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-warning"),$this->gT("Warning : previous survey selected don't exist currently."));
             }
             if($oNextSurvey) {
-                if(!$oNextSurvey->getHasTokensTable()) {
+                if(!$oNextSurvey->getHasTokensTable() && !$this->reloadAnyResponseExist) {
                     $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token table, you must enable token before."));
                 }
-                if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y") {
+                if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y" && $this->reloadAnyResponseExist) {
                     $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token answer persistance enable."));
                 }
             }
@@ -298,54 +359,80 @@ class surveyChaining extends PluginBase {
         if(!$nextSurvey) {
             $nextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
         }
+        $this->log($this->gT("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
+
         if(!$nextSurvey) {
             return;
         }
-        Yii::log($this->gT("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_TRACE,'plugin.'.get_class($this).".afterSurveyComplete");
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
-            Yii::log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            $this->log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING);
             return;
         }
-        if(!$oNextSurvey->getHasTokensTable()) {
-            Yii::log($this->gT("Invalid survey selected for $surveyId (No token table)"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+        if(!$oNextSurvey->getHasTokensTable() && !$this->reloadAnyResponseExist) {
+            $this->log($this->gT("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
             return;
         }
+        $sEmail = LimeExpressionManager::ProcessStepString($this->get($nextEmailSetting, 'Survey', $surveyId,""),array(),3,1);
         /* Ok we get here : do action */
+        //~ $oSurvey = Survey::model()->findByPk($surveyId);
         //~ $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
-        $nextCodeToColumn =  array_flip(\surveyChaining\surveyCodeHelper::getColumnsToCode($nextSurvey));
+        $nextCodeToColumn =  array_flip(\surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($nextSurvey));
         $nextExistingCodeToColumn = array_intersect_key($nextCodeToColumn,$currentResponse);
         if(empty($nextExistingCodeToColumn)) {
-            Yii::log($this->gT("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING,'plugin.'.get_class($this).".afterSurveyComplete");
+            $this->log($this->gT("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING);
             return;
         }
-        /* @TODO : usage without token enable survey */
-        /* Create the token */
-        $oToken = Token::create($nextSurvey);
-        $oToken->validfrom = date("Y-m-d H:i:s");
-        $oToken->email = trim(LimeExpressionManager::ProcessStepString($this->get($nextEmailSetting, 'Survey', $surveyId,""),array(),3,null));
-        $oToken->generateToken();
-        $language = App()->getLanguage();
-        if(!in_array($language,$oNextSurvey->getAllLanguages())) {
-            $language = $oNextSurvey->language;
+        /* Find if previous response */
+        $chainingResponseLink = \surveyChaining\models\chainingResponseLink::model()->find(
+            "prevsid = :prevsid AND prevsrid = :prevsrid AND nextsid = :nextsid",
+            array(':prevsid'=>$surveyId,':prevsrid'=>$responseId,':nextsid'=>$nextSurvey)
+        );
+        $oResponse = null;
+        if($chainingResponseLink) {
+            $oResponse = Response::model($nextSurvey)->findByPk($chainingResponseLink->nextsrid);
         }
-        $oToken->language;
-        /* @todo : set attribute */
-        if(!$oToken->save()) {
-            Yii::log($this->gT("Unable to create token for $nextSurvey"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete");
-            return;
+        $oToken = null;
+        if($oNextSurvey->getHasTokensTable() && !$oNextSurvey->getIsAnonymized()) {
+            /* find token */
+            if($oResponse) {
+                $oToken = Token::model($nextSurvey)->find("token = :token",array(':token'=>$oResponse->token));
+                $oToken->email = $sEmail;
+            }
+            /* Else create the token */
+            if(!$oToken) {
+                /* To set attributes ? */
+                $aAttributes = array();
+                $oToken = $this->_createToken($nextSurvey,$sEmail,$aAttributes);
+            }
         }
-        
-        $token = $oToken->token;
-        $oResponse = Response::create($nextSurvey);
+        /* Create response */
+        if (!$oResponse) {
+            $oResponse = Response::create($nextSurvey);
+        }
         foreach($nextExistingCodeToColumn as $code=>$column) {
             $oResponse->$column = $currentResponse[$code];
         }
-        $oResponse->startlanguage = $language;
-        $oResponse->token = $token;
+        $oResponse->startlanguage = App()->getLanguage();
+        if($oToken && !$oNextSurvey->getIsAnonymized()) {
+            $oResponse->token = $oToken->token;
+        }
         if(!$oResponse->save()) {
-            Yii::log($this->gT("Unable to save response for token $token for $nextSurvey"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete");
+            $this->log("Unable to save response for survey {$surveyId}, response {$responseId} for $nextSurvey",\CLogger::LEVEL_ERROR);
+            $this->log(CVarDumper::dumpAsString($oResponse->getErrors()),CLogger::LEVEL_ERROR);
             return;
+        }
+        /* save links between responses */
+        if(!$chainingResponseLink) {
+            $chainingResponseLink = new \surveyChaining\models\chainingResponseLink;
+            $chainingResponseLink->prevsid = $surveyId;
+            $chainingResponseLink->prevsrid = $responseId;
+            $chainingResponseLink->nextsid = $nextSurvey;
+        }
+        $chainingResponseLink->nextsrid = $oResponse->id;
+        if(!$chainingResponseLink->save()) {
+            $this->log("Unable to save response link for {$oResponse->id} survey {$surveyId} linked with response {$responseId} for $nextSurvey",\CLogger::LEVEL_ERROR);
+            $this->log(CVarDumper::dumpAsString($chainingResponseLink->getErrors()),CLogger::LEVEL_ERROR);
         }
         /* Get email and send */
         $nextMessage = $this->get($nextMessageSetting, 'Survey', $surveyId, "invite");
@@ -356,20 +443,95 @@ class surveyChaining extends PluginBase {
             $nextMessage = 'invite';
         }
 
-        if($oToken->email && $nextMessage) {
-            $this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage);
+        if($oNextSurvey->getHasTokensTable() && !$oNextSurvey->getIsAnonymized() && $oToken) {
+            if($this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage)) {
+                // All done
+                return;
+            }
         }
+        if($this->reloadAnyResponseExist) {
+            $this->_sendSurveyChainingReloadEmail($nextSurvey,$oResponse->id,$sEmail,$nextMessage,$oToken);
+        }
+    }
+
+    /**
+     * send email with SURVEYURL to new survey using reloadAnyResponse plugin
+     * @param integer $iSurvey
+     * @param integer $iResponse
+     * @param string $sEmail
+     * @param string $mailType
+     * @throw Exception
+     * @return boolean
+     */
+    private function _sendSurveyChainingReloadEmail($nextSurvey,$iResponse,$sEmail,$mailType = 'invite')
+    {
+        $oNextSurvey = Survey::model()->findByPk($nextSurvey);
+        if($oNextSurvey->getHasTokensTable()) {
+            /* Always create token */
+            $oToken = $this->_createToken($nextSurvey);
+            /* Set token to exiting response if needed */
+            if(!$oNextSurvey->getIsAnonymized()) {
+                $oResponse = Response::model($nextSurvey)->findByPk($iResponse);
+                if($oResponse && $oResponse->token) {
+                    $oToken->token = $oResponse->token;
+                    $oToken->save();
+                }
+            }
+        }
+        $aReplacement = array();
+        /* Get survey link */
+        $token = isset($oToken->token) ? $oToken->token : null;
+        $responseLink = \reloadAnyResponse\models\responseLink::setResponseLink($nextSurvey,$iResponse,$token);
+        if(!$responseLink) {
+            $this->log("Unable to save response reload link for {$iResponse} survey {$nextSurvey}",\CLogger::LEVEL_ERROR);
+            $this->log(CVarDumper::dumpAsString($responseLink->getErrors()),CLogger::LEVEL_ERROR);
+            return false;
+        }
+        $aReplacements = array();
+        $aReplacements["SURVEYURL"] = $responseLink->getStartUrl();
+        $this->log("Try to send an email to $sEmail for $nextSurvey with responseLink",\CLogger::LEVEL_INFO);
+        if($this->_sendSurveyChainingEmail($nextSurvey,$sEmail,Yii::app()->getLanguage(),$mailType,$aReplacements) ) {
+            return true;
+        }
+        return false;
     }
 
     /**
      * send email with SURVEYURL to new survey
      * @param integer $iSurvey
-     * @param Object $oToken \Token
-     * @param integer $responseId
+     * @param \Tokent $oToken \Token
      * @param string $mailType
+     * @throw Exception
      * @return boolean
      */
-    private function _sendSurveyChainingTokenEmail($nextSurvey,$oToken,$mailType = 'invite') {
+    private function _sendSurveyChainingTokenEmail($nextSurvey,$oToken,$mailType = 'invite')
+    {
+        $sToken = $oToken->token;
+        $sLanguage = $oToken->language;
+        $aReplacements = array();
+        foreach($oToken->attributes as $attribute=>$value){
+            $aReplacements[strtoupper($attribute)]=$value;
+        }
+        $aReplacements["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index/sid/{$nextSurvey}",array('lang'=>$sLanguage,'token'=>$sToken));
+        if($this->_sendSurveyChainingEmail($nextSurvey,$oToken->email,$sLanguage,$mailType,$aReplacements) ) {
+            /* @todo did we need to test sent ? */
+            $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
+            $oToken->save();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * function to send email
+     * @param int $nextSurvey
+     * @param string $language
+     * @param string $sSendTo email or list of emails separated by ;
+     * @param string $mailType
+     * @param array $aReplacements
+     * @return boolean (success or not)
+     */
+    private function _sendSurveyChainingEmail($nextSurvey,$sSendTo,$sLanguage = '',$mailType = 'invite',$aReplacements = array()) {
         global $maildebug;
         if(!in_array($mailType,array('invite','remind','register','confirm','admin_notification','admin_responses')) ) {
             if(defined('YII_DEBUG') && YII_DEBUG) {
@@ -378,7 +540,6 @@ class surveyChaining extends PluginBase {
             return false;
         }
         $oSurvey = Survey::model()->findByPk($nextSurvey);
-        $sLanguage = $oToken->language;
         if(!in_array($sLanguage,$oSurvey->getAllLanguages())) {
             $sLanguage = $oSurvey->language;
         }
@@ -388,40 +549,28 @@ class surveyChaining extends PluginBase {
         $attMessage = 'surveyls_email_'.$mailType;
         $sSubject = $oSurveyLanguage->$attSubject;
         $sMessage = $oSurveyLanguage->$attMessage;
-        $aReplacementFields=array();
+        $useHtmlEmail = $oSurvey->getIsHtmlEmail();
+        $aReplacementFields=$aReplacements;
         $aReplacementFields["ADMINNAME"]=$oSurvey->admin;
         $aReplacementFields["ADMINEMAIL"]=$oSurvey->adminemail;
         $aReplacementFields["SURVEYNAME"]=$oSurveyLanguage->surveyls_title;
         $aReplacementFields["SURVEYDESCRIPTION"]=$oSurveyLanguage->surveyls_description;
         $aReplacementFields["EXPIRY"]=$oSurvey->expires;
-        foreach($oToken->attributes as $attribute=>$value){
-            $aReplacementFields[strtoupper($attribute)]=$value;
-        }
-        $sToken=$oToken->token;
-        $useHtmlEmail = ($oSurvey->htmlemail == 'Y');
-        
-        //~ $sSubject=preg_replace("/{TOKEN:([A-Z0-9_]+)}/","{"."$1"."}",$sSubject);
-        //~ $sMessage=preg_replace("/{TOKEN:([A-Z0-9_]+)}/","{"."$1"."}",$sMessage);
-        $aReplacementFields["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index/sid/{$nextSurvey}",array('lang'=>$sLanguage,'token'=>$sToken));
-        $aReplacementFields["OPTOUTURL"] = Yii::app()->getController()->createAbsoluteUrl("/optout/tokens/surveyid/{$nextSurvey}",array('langcode'=>$sLanguage,'token'=>$sToken));
-        $aReplacementFields["OPTINURL"] = Yii::app()->getController()->createAbsoluteUrl("/optin/tokens/surveyid/{$nextSurvey}",array('langcode'=>$sLanguage,'token'=>$sToken));
-        foreach(array('OPTOUT', 'OPTIN', 'SURVEY') as $key) {
-            $url = $aReplacementFields["{$key}URL"];
+        if(isset($aReplacementFields["SURVEYURL"])) {
+            $url = $aReplacementFields["SURVEYURL"];
             if ($useHtmlEmail) {
-                $aReplacementFields["{$key}URL"] = "<a href='{$url}'>" . htmlspecialchars($url) . '</a>';
+                $aReplacementFields["SURVEYURL"] = "<a href='{$url}'>" . htmlspecialchars($url) . '</a>';
             }
-            $sSubject = str_replace("@@{$key}URL@@", $url, $sSubject);
-            $sMessage = str_replace("@@{$key}URL@@", $url, $sMessage);
-        }
+            $sSubject = str_replace("@@SURVEYURL@@", $url, $sSubject);
+            $sMessage = str_replace("@@SURVEYURL@@", $url, $sMessage);
+        } // Send a warning if not set ?
+
         $sSubject = LimeExpressionManager::ProcessStepString($sSubject,$aReplacementFields,3,1);
         $sMessage = LimeExpressionManager::ProcessStepString($sMessage,$aReplacementFields,3,1);
         $mailFromName = $oSurvey->admin;
         $mailFromMail = empty($oSurvey->adminemail) ? App()->getConfig('siteadminemail') : $oSurvey->adminemail;
         $sFrom = !empty($mailFromName) ? "{$mailFromName} <{$mailFromMail}>" : $mailFromMail;
         $sBounce=$oSurvey->bounce_email;
-        /* Get array (EM replaced) of to */
-        $aEmailTo = array();
-        $sSendTo = $oToken->email;
         $aRecipient = explode(";", LimeExpressionManager::ProcessStepString($sSendTo,$aReplacementFields,3,1));
         foreach ($aRecipient as $sRecipient) {
             $sRecipient = trim($sRecipient);
@@ -432,18 +581,97 @@ class surveyChaining extends PluginBase {
         $sended = false;
         if(!empty($aEmailTo)) {
             foreach($aEmailTo as $sEmail) {
+                $this->log("SendEmailMessage to $sEmail",\CLogger::LEVEL_TRACE);
                 if(SendEmailMessage($sMessage, $sSubject, $sEmail, $sFrom, App()->getConfig("sitename"), $useHtmlEmail, $sBounce)) {
                     $sended = true;
+                } else {
+                    $this->log($this->gT("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR);
                 }
             }
-        } else {
-            Yii::log($this->gT("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR,'plugin.'.get_class($this).".afterSurveyComplete._sendSurveyChainingTokenEmail");
         }
-        if($sended) {
-            $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
-            $oToken->save();
-            return true;
-        }
-        return false;
+        return $sended;
     }
+    /**
+     * Create a token for a survey
+     * @param integer $nextSurvey id
+     * @param string $email
+     * @param array $aAttributes to create
+     * @return \Token|null
+     */
+    private function _createToken($nextSurvey,$email="",$aAttributes=array())
+    {
+        $oToken = Token::create($nextSurvey);
+        $oToken->validfrom = date("Y-m-d H:i:s");
+        $oToken->email = $email;
+        $oToken->generateToken();
+        $language = App()->getLanguage();
+        if(!in_array($language,Survey::model()->findByPk($nextSurvey)->getAllLanguages())) {
+            $language = Survey::model()->findByPk($nextSurvey)->language;
+        }
+        $oToken->language = $language;
+        /* @todo : set attribute */
+        if(!$oToken->save()) {
+            $this->log($this->gT("Unable to create token for $nextSurvey"),\CLogger::LEVEL_WARNING);
+            return null;
+        }
+        return $oToken;
+    }
+    /**
+     * Update some Yii and LS config
+     * Set some var
+     */
+    private function _setConfig()
+    {
+        Yii::setPathOfAlias('surveyChaining', dirname(__FILE__));
+    }
+
+  /**
+   * @inheritdoc adding string, by default current event
+   * @param string
+   */
+  public function log($message, $level = \CLogger::LEVEL_TRACE,$logDetail = null)
+  {
+    if(!$logDetail && $this->getEvent()) {
+      $logDetail = $this->getEvent()->getEventName();
+    } // What to put if no event ?
+    //parent::log($message, $level);
+    Yii::log($message, $level,'application.plugins.'.get_class($this).".".$logDetail);
+  }
+
+  /**
+   * set and fix DB and table
+   * @return void
+   */
+  private function _setDb()
+  {
+    if($this->get('dbversion',null,null,0) >= $this->dbversion) {
+      return;
+    }
+    if (!$this->api->tableExists($this, 'chainingResponseLink')) {
+      $this->api->createTable($this, 'chainingResponseLink', array(
+          'id' => 'pk',
+          'prevsid'=>'int',
+          'prevsrid'=>'int',
+          'nextsid'=>'int',
+          'nextsrid'=>'int',
+      ));
+      $this->set('dbversion',$this->dbversion);
+      Notification::broadcast(array(
+          'title' => gT('Database update'),
+          'message' => sprintf($this->gT('The database for plugin %s has been created (version %s).'),get_class($this),$this->dbversion),
+          'display_class' => 'success',
+      ),User::model()->getSuperAdmins());
+      $this->log(sprintf('The database for plugin %s has been created (version %s).',get_class($this),$this->dbversion),\CLogger::LEVEL_INFO);
+      return; // No need upgrade if created
+    }
+    /* Not used currently, adding function when need update */
+    $this->set('dbversion',$this->dbversion);
+    Notification::broadcast(array(
+        'title' => gT('Database update'),
+        'message' => sprintf($this->gT('The database for plugin %s has been upgraded to version %s.'),get_class($this),$this->dbversion),
+        'display_class' => 'success',
+    ),User::model()->getSuperAdmins());
+    $this->log(sprintf('The database for plugin %s has been upgraded to version %s.',get_class($this),$this->dbversion),\CLogger::LEVEL_INFO);
+
+  }
 }

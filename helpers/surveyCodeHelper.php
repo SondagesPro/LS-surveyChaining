@@ -17,7 +17,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-namespace surveyChaining;
+namespace surveyChaining\helpers;
 use Yii;
 use PDO;
 use Survey;
@@ -60,6 +60,7 @@ Class surveyCodeHelper
     /**
      * return array  with DB column name key and EM code for value for one question
      * @param integer $qid
+     * @throw Exception if debug
      * @return array|null
      */
     private static function getQuestionColumnToCode($qid) {
@@ -155,7 +156,13 @@ Class surveyCodeHelper
                     }
                 }
                 break;
+            case 'none':
+                // Nothing needed
+                break;
             default:
+                if(defined('YII_DEBUG') && YII_DEBUG) {
+                    throw new Exception(sprintf('Unknow question type %s.',$oQuestion->type));
+                }  
                 // NUll
         }
         if(self::allowOther($oQuestion->type) and $oQuestion->other=="Y") {
@@ -206,6 +213,7 @@ Class surveyCodeHelper
             ";" => 'double',
             "|" => 'upload',
             "*" => 'single',
+            "X" => 'none',
         );
         if(!isset($questionTypeByType[$type])) {
             return null;
