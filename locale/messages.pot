@@ -1,7 +1,8 @@
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2018-04-04 09:15+0200\n"
+"POT-Creation-Date: 2018-04-27 19:16+0200\n"
 "PO-Revision-Date: 2018-04-04 09:18+0200\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -15,83 +16,128 @@ msgstr ""
 "Language: en\n"
 "X-Poedit-SearchPath-0: .\n"
 
-#: surveyChaining.php:55
-msgid "survey chaining"
+#: surveyChaining.php:109
+msgid "Survey chaining"
 msgstr ""
 
-#: surveyChaining.php:117 surveyChaining.php:157 surveyChaining.php:181
+#: surveyChaining.php:191 surveyChaining.php:233 surveyChaining.php:248
 msgid "None"
 msgstr ""
 
-#: surveyChaining.php:119
+#: surveyChaining.php:193
 msgid "Next survey (by default)."
 msgstr ""
 
-#: surveyChaining.php:125 surveyChaining.php:189
+#: surveyChaining.php:200 surveyChaining.php:275
 msgid "Send email to"
 msgstr ""
 
-#: surveyChaining.php:126 surveyChaining.php:190
+#: surveyChaining.php:201 surveyChaining.php:276
 msgid "You can use Expression Manager with question code"
 msgstr ""
 
-#: surveyChaining.php:132 surveyChaining.php:196
+#: surveyChaining.php:207 surveyChaining.php:282
 msgid "Mail template to use"
 msgstr ""
 
-#: surveyChaining.php:134 surveyChaining.php:198
+#: surveyChaining.php:209 surveyChaining.php:284
 msgid "Invitation (Default)"
 msgstr ""
 
-#: surveyChaining.php:137 surveyChaining.php:201
+#: surveyChaining.php:212 surveyChaining.php:287
 msgid "Invitation"
 msgstr ""
 
-#: surveyChaining.php:138 surveyChaining.php:202
+#: surveyChaining.php:213 surveyChaining.php:288
 msgid "Reminder"
 msgstr ""
 
-#: surveyChaining.php:139 surveyChaining.php:203
+#: surveyChaining.php:214 surveyChaining.php:289
 msgid "Register"
 msgstr ""
 
-#: surveyChaining.php:140 surveyChaining.php:204
+#: surveyChaining.php:215 surveyChaining.php:290
 msgid "Admin notification"
 msgstr ""
 
-#: surveyChaining.php:141 surveyChaining.php:205
+#: surveyChaining.php:216 surveyChaining.php:291
 msgid "Admin detailed response"
 msgstr ""
 
-#: surveyChaining.php:146
+#: surveyChaining.php:221
 msgid "Next survey"
 msgstr ""
 
-#: surveyChaining.php:159
-msgid "Question for next surveys."
+#: surveyChaining.php:235
+msgid "Question determining the following survey"
 msgstr ""
 
-#: surveyChaining.php:162
+#: surveyChaining.php:242
 msgid ""
 "Only single choice question type can be used for survey selection. The list "
-"of available answer update after save this value."
+"of available answer update after save this settings."
 msgstr ""
 
-#: surveyChaining.php:165
-msgid "Question for conditionnal surveys"
+#: surveyChaining.php:245
+msgid "Surveys determined by a question inside this survey"
 msgstr ""
 
-#: surveyChaining.php:183
-msgid "Next survey."
+#: surveyChaining.php:250
+msgid "Current default"
 msgstr ""
 
-#: surveyChaining.php:210
+#: surveyChaining.php:268
+msgid "Next survey according to the choice"
+msgstr ""
+
+#: surveyChaining.php:296
 #, php-format
-msgid "Conditionnal survey (%s)"
+msgid "Next survey for %s (%s)"
 msgstr ""
 
-#: surveyChaining.php:217
+#: surveyChaining.php:303
 msgid "Survey chaining settings"
+msgstr ""
+
+#: surveyChaining.php:638 surveyChaining.php:648
+msgid "Database update"
+msgstr ""
+
+#: surveyChaining.php:639
+#, php-format
+msgid "The database for plugin %s has been created (version %s)."
+msgstr ""
+
+#: surveyChaining.php:649
+#, php-format
+msgid "The database for plugin %s has been upgraded to version %s."
+msgstr ""
+
+#: surveyChaining.php:668
+msgid "Warning : previous survey selected don't exist currently."
+msgstr ""
+
+#: surveyChaining.php:672
+msgid ""
+"Warning : current survey selected don't have token table, you must enable "
+"token before."
+msgstr ""
+
+#: surveyChaining.php:675
+msgid ""
+"Warning : current survey selected don't have token answer persistance "
+"enable."
+msgstr ""
+
+#: surveyChaining.php:679
+msgid ""
+"Warning : survey selected and current survey didn't have any correspondig "
+"question."
+msgstr ""
+
+#: surveyChaining.php:681
+#, php-format
+msgid "Survey selected and current survey have this correspondig question: %s"
 msgstr ""
 
 #: views/settings.php:25 views/settings.php:34
