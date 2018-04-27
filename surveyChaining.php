@@ -5,7 +5,7 @@
  * @author Denis Chenu <denis@sondages.pro>
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @license GPL v3
- * @version 0.10.0
+ * @version 0.11.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -32,8 +32,6 @@ class surveyChaining extends PluginBase {
      * @var boolean did this done (see issue in limesurvey)
      */
     var $done = false;
-    /* @var boolean can we use reloadAnyResponse */
-    private $reloadAnyResponseExist = false;
 
     public function init() {
         $this->subscribe('beforeSurveySettings');
@@ -46,9 +44,7 @@ class surveyChaining extends PluginBase {
         if($oPlugin && $oPlugin->active) {
           $this->_setConfig();
         }
-        $this->subscribe('afterPluginLoad');
         $this->subscribe('beforeControllerAction');
-
     }
 
     /** @inheritdoc **/
@@ -56,13 +52,6 @@ class surveyChaining extends PluginBase {
     {
       $this->_setDb();
     }
-    /** @inheritdoc **/
-    public function afterPluginLoad()
-    {
-        $this->reloadAnyResponseExist = (bool) Yii::getPathOfAlias('reloadAnyResponse');
-        $this->log($this->reloadAnyResponseExist ? "Plugin reloadAnyResponse exist" : "Plugin reloadAnyResponse didn‘t exist",\CLogger::LEVEL_TRACE);
-    }
-
 
     public function beforeSurveySettings()
     {
@@ -144,6 +133,7 @@ class surveyChaining extends PluginBase {
      */
     public function actionSettings($surveyId)
     {
+        $this->log($this->_reloadAnyResponseExist() ? "Plugin reloadAnyResponse exist" : "Plugin reloadAnyResponse didn‘t exist",\CLogger::LEVEL_TRACE);
         $oSurvey=Survey::model()->findByPk($surveyId);
         if(!$oSurvey) {
             throw new CHttpException(404,$this->translate("This survey does not seem to exist."));
@@ -193,20 +183,7 @@ class surveyChaining extends PluginBase {
         $sHelpSurveyTable = null;
         $iNextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
         
-        if($iNextSurvey) {
-            $oNextSurvey = Survey::model()->findByPk($iNextSurvey);
-            if(!$oNextSurvey) {
-                $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-warning"),$this->gT("Warning : previous survey selected don't exist currently."));
-            }
-            if($oNextSurvey) {
-                if(!$oNextSurvey->getHasTokensTable() && !$this->reloadAnyResponseExist) {
-                    $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token table, you must enable token before."));
-                }
-                if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y" && $this->reloadAnyResponseExist) {
-                    $sHelpSurveyTable = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token answer persistance enable."));
-                }
-            }
-        }
+
         $aNextSettings = array(
             'nextSurvey' => array(
                 'type'=>'select',
@@ -216,7 +193,7 @@ class surveyChaining extends PluginBase {
                 'label'=>$this->gT("Next survey (by default)."),
                 'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                 'current'=>$this->get('nextSurvey', 'Survey', $surveyId,null),
-                'help' => $sHelpSurveyTable,
+                'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey', 'Survey', $surveyId,null)),
             ),
             'nextEmail' => array(
                 'type' => 'string',
@@ -255,17 +232,17 @@ class surveyChaining extends PluginBase {
                 'htmlOptions'=>array(
                     'empty'=>$this->gT("None"),
                 ),
-                'label'=>$this->gT("Question for next surveys."),
+                'label'=>$this->gT("Question determining the following survey"),
                 'options'=>CHtml::listData($oaQuestion,'title',
                     function($oQuestion) {
                         return "[".$oQuestion->title."] ".viewHelper::flatEllipsizeText($oQuestion->question,1,40,"…");
                     }
                 ),
                 'current'=>$this->get('choiceQuestion', 'Survey', $surveyId,null),
-                'help' => $this->gT("Only single choice question type can be used for survey selection. The list of available answer update after save this value."),
+                'help' => $this->gT("Only single choice question type can be used for survey selection. The list of available answer update after save this settings."),
             ),
         );
-        $aSettings[$this->gT("Question for conditionnal surveys")] = $aNextQuestionSettings;
+        $aSettings[$this->gT("Surveys determined by a question inside this survey")] = $aNextQuestionSettings;
 
         /* Text for default */
         $sDefaultText = $this->gT("None");
@@ -284,13 +261,14 @@ class surveyChaining extends PluginBase {
                 $code = $oAnswers->code;
                 $aNextSettings = array(
                     'nextSurvey_'.$code => array(
-                        'type'=>'select',
-                        'htmlOptions'=>array(
-                            'empty'=>$sDefaultText,
+                        'type' => 'select',
+                        'htmlOptions' => array(
+                            'empty' => $sDefaultText,
                         ),
-                        'label'=>$this->gT("Next survey."),
-                        'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
-                        'current'=>$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null),
+                        'label' => $this->gT("Next survey according to the choice"),
+                        'options' =>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
+                        'current '=> $this->get('nextSurvey_'.$code, 'Survey', $surveyId,null),
+                        'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                     ),
                     'nextEmail_'.$code => array(
                         'type' => 'string',
@@ -315,7 +293,7 @@ class surveyChaining extends PluginBase {
                         'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
                     ),
                 );
-                $aSettings[sprintf($this->gT("Conditionnal survey (%s)"),$code)] = $aNextSettings;
+                $aSettings[sprintf($this->gT("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->text,1,60,"…"))] = $aNextSettings;
             }
 
         }
@@ -369,7 +347,7 @@ class surveyChaining extends PluginBase {
             $this->log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING);
             return;
         }
-        if(!$oNextSurvey->getHasTokensTable() && !$this->reloadAnyResponseExist) {
+        if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
             $this->log($this->gT("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
             return;
         }
@@ -449,7 +427,7 @@ class surveyChaining extends PluginBase {
                 return;
             }
         }
-        if($this->reloadAnyResponseExist) {
+        if($this->_reloadAnyResponseExist()) {
             $this->_sendSurveyChainingReloadEmail($nextSurvey,$oResponse->id,$sEmail,$nextMessage,$oToken);
         }
     }
@@ -672,6 +650,58 @@ class surveyChaining extends PluginBase {
         'display_class' => 'success',
     ),User::model()->getSuperAdmins());
     $this->log(sprintf('The database for plugin %s has been upgraded to version %s.',get_class($this),$this->dbversion),\CLogger::LEVEL_INFO);
-
   }
+
+    /**
+     * Get the help for a survey in settings
+    * @param $surveyId
+    * @param $selectedSurveyId
+    * @return null|string html to be shown
+    */
+    private function _getHelpFoSurveySetting($surveyId,$selectedSurveyId)
+    {
+        if(!$selectedSurveyId) {
+            return null;
+        }
+        $oNextSurvey = Survey::model()->findByPk($selectedSurveyId);
+        if(!$oNextSurvey) {
+            return CHtml::tag("div",array('class'=>"text-warning"),$this->gT("Warning : previous survey selected don't exist currently."));
+        }
+        $aStringReturn = array();
+        if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token table, you must enable token before."));
+        }
+        if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y" && $this->_reloadAnyResponseExist()) {
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token answer persistance enable."));
+        }
+        $aSameCodes = $this->_getSameCodes($surveyId,$selectedSurveyId);
+        if(empty($aSameCodes)) {
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : survey selected and current survey didn't have any correspondig question."));
+        } else {
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("Survey selected and current survey have this correspondig question: %s"),implode(",",$aSameCodes)));
+        }
+        tracevar($aStringReturn);
+        return implode("\n",$aStringReturn);
+    }
+    /**
+    * Get corresponding questioon code correponding for 2 surveys
+    * @param $firstSurveyId
+    * @param $secondSurveyId
+    * @return string[]
+    */
+    private function _getSameCodes($firstSurveyId,$secondSurveyId)
+    {
+        $firstSurveyCodes =  \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($firstSurveyId);
+        $secondSurveyCodes =  \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($secondSurveyId);
+
+        return array_intersect($firstSurveyCodes,$secondSurveyCodes);
+    }
+
+    /**
+     * Check if reloadResponseExist
+     */
+    private function _reloadAnyResponseExist()
+    {
+        return (bool) Yii::getPathOfAlias('reloadAnyResponse');
+    }
 }
