@@ -5,7 +5,7 @@
  * @author Denis Chenu <denis@sondages.pro>
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @license GPL v3
- * @version 0.11.0
+ * @version 0.11.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -133,7 +133,6 @@ class surveyChaining extends PluginBase {
      */
     public function actionSettings($surveyId)
     {
-        $this->log($this->_reloadAnyResponseExist() ? "Plugin reloadAnyResponse exist" : "Plugin reloadAnyResponse didn‘t exist",\CLogger::LEVEL_TRACE);
         $oSurvey=Survey::model()->findByPk($surveyId);
         if(!$oSurvey) {
             throw new CHttpException(404,$this->translate("This survey does not seem to exist."));
@@ -293,7 +292,7 @@ class surveyChaining extends PluginBase {
                         'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
                     ),
                 );
-                $aSettings[sprintf($this->gT("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->text,1,60,"…"))] = $aNextSettings;
+                $aSettings[sprintf($this->gT("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->answer,1,60,"…"))] = $aNextSettings;
             }
 
         }
@@ -680,7 +679,6 @@ class surveyChaining extends PluginBase {
         } else {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("Survey selected and current survey have this correspondig question: %s"),implode(",",$aSameCodes)));
         }
-        tracevar($aStringReturn);
         return implode("\n",$aStringReturn);
     }
     /**
