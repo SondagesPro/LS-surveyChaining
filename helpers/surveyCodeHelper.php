@@ -29,10 +29,11 @@ Class surveyCodeHelper
 {
     /**
     /* Get an array with DB column name key and EM code for value
-     * @param $iSurvey
+     * @param integer $iSurvey
+     * @param boolean $byQid create an array by question id
      * @return null|array
      */
-    public static function getColumnsToCode($iSurvey)
+    public static function getColumnsToCode($iSurvey,$byQid = false)
     {
         // First get all question
         $oSurvey = Survey::model()->findByPk($iSurvey);
@@ -52,7 +53,11 @@ Class surveyCodeHelper
         $allQuestions = $command->query()->readAll();
         $aColumnsToCode = array();
         foreach ($allQuestions as $aQuestion) {
-            $aColumnsToCode = array_merge($aColumnsToCode,self::getQuestionColumnToCode($aQuestion['qid']));
+            if($byQid) {
+                $aColumnsToCode[$aQuestion['qid']] = self::getQuestionColumnToCode($aQuestion['qid']);
+            } else {
+                $aColumnsToCode = array_merge($aColumnsToCode,self::getQuestionColumnToCode($aQuestion['qid']));
+            }
         }
         return $aColumnsToCode;
     }

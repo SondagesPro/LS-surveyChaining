@@ -5,7 +5,7 @@
  * @author Denis Chenu <denis@sondages.pro>
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @license GPL v3
- * @version 0.11.1
+ * @version 0.12.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -34,8 +34,8 @@ class surveyChaining extends PluginBase {
     var $done = false;
 
     public function init() {
-        $this->subscribe('beforeSurveySettings');
-        $this->subscribe('newSurveySettings');
+        //~ $this->subscribe('beforeSurveySettings');
+        //~ $this->subscribe('newSurveySettings');
 
         $this->subscribe('beforeToolsMenuRender');
 
@@ -45,6 +45,9 @@ class surveyChaining extends PluginBase {
           $this->_setConfig();
         }
         $this->subscribe('beforeControllerAction');
+
+        $this->subscribe('newDirectRequest');
+
     }
 
     /** @inheritdoc **/
@@ -63,6 +66,48 @@ class surveyChaining extends PluginBase {
 
     }
 
+    /** */
+    public function newDirectRequest()
+    {
+        if($this->getEvent()->get('target') != get_class($this)) {
+            return;
+        }
+        if(!Permission::model()->getUserId() ) {
+            throw new CHttpException(401);
+        }
+        
+        $surveyId = App()->getRequest()->getParam('sid');
+        $destSurveyId = App()->getRequest()->getParam('destsid');
+        if(!$surveyId || !$destSurveyId) {
+            throw new CHttpException(500,$this->gT("This action need a survey and a destination survey id"));
+        }
+        $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
+        if (!$oAnswersAsReadonly || !$oAnswersAsReadonly->active) {
+            $this->_renderJson(array('error'=>array('message'=>$this->gT("answersAsReadonly plugin didn't exist or is not activated."))));
+        }
+        if(!Permission::model()->hasSurveyPermission($surveyId,'surveysettings','update')){
+            throw new CHttpException(403);
+        }
+        if(!Permission::model()->hasSurveyPermission($destSurveyId,'surveysettings','update')){
+            throw new CHttpException(403,sprintf($this->gT("You don't have permission on survey %s"),$destSurveyId));
+        }
+        //~ $oSurvey = Survey::model()->findByPk($surveyId);
+        //~ $oDestSurvey = Survey::model()->findByPk($destSurveyId);
+        $aSameCode = $this->_getSameCodes($surveyId,$destSurveyId);
+        if(empty($aSameCode)) {
+            $this->_renderJson(array('error'=>array('message'=>$this->gT("Survey selected and current survey didn't have any correspondig question."))));
+        }
+        $aQidColumnsToCode = \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($destSurveyId,true);
+        $aQidToDo = array_filter($aQidColumnsToCode, function($aColumnToCode) use ($aSameCode) {
+            return count(array_intersect($aSameCode,$aColumnToCode));
+        });
+        foreach(array_keys($aQidToDo) as $qid) {
+            QuestionAttribute::model()->setQuestionAttribute($qid,'readonly',1);
+        }
+        $this->_renderJson(array(
+            'success'=>sprintf($this->gT("Question(s) %s are set to readonly"),implode(',',array_keys($aQidToDo)))
+        ));
+    }
     /** @inheritdoc **/
     public function afterModelDelete()
     {
@@ -138,7 +183,7 @@ class surveyChaining extends PluginBase {
             throw new CHttpException(404,$this->translate("This survey does not seem to exist."));
         }
         if(!Permission::model()->hasSurveyPermission($surveyId,'surveysettings','update')){
-            throw new CHttpException(401);
+            throw new CHttpException(403);
         }
 
         if(App()->getRequest()->getPost('save'.get_class($this))) {
@@ -181,7 +226,6 @@ class surveyChaining extends PluginBase {
             ->findAll(array('order'=>'surveyls_title'));
         $sHelpSurveyTable = null;
         $iNextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
-        
 
         $aNextSettings = array(
             'nextSurvey' => array(
@@ -266,7 +310,7 @@ class surveyChaining extends PluginBase {
                         ),
                         'label' => $this->gT("Next survey according to the choice"),
                         'options' =>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
-                        'current '=> $this->get('nextSurvey_'.$code, 'Survey', $surveyId,null),
+                        'current'=> intval($this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                         'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                     ),
                     'nextEmail_'.$code => array(
@@ -292,6 +336,7 @@ class surveyChaining extends PluginBase {
                         'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
                     ),
                 );
+                //~ tracevar($aNextSettings);
                 $aSettings[sprintf($this->gT("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->answer,1,60,"…"))] = $aNextSettings;
             }
 
@@ -302,6 +347,10 @@ class surveyChaining extends PluginBase {
         $aData['title']=$this->gT("Survey chaining settings");
         $aData['aSettings']=$aSettings;
         $aData['assetUrl']=Yii::app()->assetManager->publish(dirname(__FILE__) . '/assets/');
+        if(App()->getConfig("debug")) {
+            $aData['assetUrl'] = Yii::app()->request->getBaseUrl()."/plugins/surveyChaining/assets";
+        }
+
         $aSettings=array();
         $content = $this->renderPartial('settings', $aData, true);
 
@@ -678,6 +727,26 @@ class surveyChaining extends PluginBase {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : survey selected and current survey didn't have any correspondig question."));
         } else {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("Survey selected and current survey have this correspondig question: %s"),implode(",",$aSameCodes)));
+            /* Find if answersAsReadonly is activated */
+            $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
+            if ($oAnswersAsReadonly && $oAnswersAsReadonly->active) {
+                /* Link broke lsadminpanel … */
+                /* @todo : control if user have permission on $selectedSurveyId */
+                if(Permission::model()->hasSurveyPermission($selectedSurveyId,'surveysettings','update')){
+                    $aStringReturn[] = CHtml::link(
+                        $this->gT("Set common question to read only"),
+                        array("plugins/direct",'plugin' => get_class(),'sid'=>$surveyId,'destsid'=>$selectedSurveyId),
+                        array('class'=>'btn btn-warning btn-xs ajax-surveychaining')
+                    );
+                } else {
+                    $aStringReturn[] = CHtml::tag("div",array('class'=>"text-warning"),$this->gT("Warning : You don't have enough permission on selected survey."));
+                }
+                //~ $url = Yii::app()->createUrl("plugins/direct", array('plugin' => get_class(),'sid'=>$surveyId));
+                //~ $aStringReturn[] = CHtml::htmlButton(
+                    //~ $this->gT("Set common question to read only"),
+                    //~ array('class'=>'btn btn-warning btn-xs ajax-surveychaining','data-url'=>$url)//)
+                //~ );
+            }
         }
         return implode("\n",$aStringReturn);
     }
@@ -685,13 +754,12 @@ class surveyChaining extends PluginBase {
     * Get corresponding questioon code correponding for 2 surveys
     * @param $firstSurveyId
     * @param $secondSurveyId
-    * @return string[]
+    * @return string[] key is column of 1st survey, value is EM code of question
     */
     private function _getSameCodes($firstSurveyId,$secondSurveyId)
     {
         $firstSurveyCodes =  \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($firstSurveyId);
         $secondSurveyCodes =  \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($secondSurveyId);
-
         return array_intersect($firstSurveyCodes,$secondSurveyCodes);
     }
 
@@ -701,5 +769,19 @@ class surveyChaining extends PluginBase {
     private function _reloadAnyResponseExist()
     {
         return (bool) Yii::getPathOfAlias('reloadAnyResponse');
+    }
+
+    /**
+     * render json
+     * @param mixed
+     * @return void
+     */
+    private function _renderJson($data=null) {
+        if(is_array($data)) {
+            $data = array_merge(array('hasPermission'=>true,'loggedIn'=>true),$data);
+        }
+        header('Content-type: application/json; charset=utf-8');
+        echo json_encode($data);
+        Yii::app()->end();
     }
 }
