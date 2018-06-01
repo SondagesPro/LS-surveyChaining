@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2018-05-18 15:40+0200\n"
-"PO-Revision-Date: 2018-05-18 15:41+0200\n"
+"POT-Creation-Date: 2018-06-01 19:36+0200\n"
+"PO-Revision-Date: 2018-06-01 19:39+0200\n"
 "Last-Translator: Denis Chenu <contact@sondages.pro>\n"
 "Language-Team: \n"
 "Language: fr\n"
@@ -15,63 +15,89 @@ msgstr ""
 "X-Poedit-KeywordsList: gT\n"
 "X-Poedit-SearchPath-0: .\n"
 
-#: surveyChaining.php:109
+#: surveyChaining.php:82
+msgid "This action need a survey and a destination survey id"
+msgstr ""
+"Cette action nécessite un questionnaire et un questionnaire de destination"
+
+#: surveyChaining.php:86
+msgid "answersAsReadonly plugin didn't exist or is not activated."
+msgstr "L‘extension answersAsReadonly n‘existe pas ou n‘est pas installée"
+
+#: surveyChaining.php:92
+#, php-format
+msgid "You don't have permission on survey %s"
+msgstr "Vous n‘avez pas les permissions sur le questionnaire %s"
+
+#: surveyChaining.php:98
+msgid ""
+"Survey selected and current survey didn't have any correspondig question."
+msgstr ""
+"Le questionnaire et le questionnaire sélectionné n‘on pas de réponses "
+"correspondantes."
+
+#: surveyChaining.php:108
+#, php-format
+msgid "Question(s) %s are set to readonly"
+msgstr "Les question(s) %s sont maintenant en lecture seule"
+
+#: surveyChaining.php:154
 msgid "Survey chaining"
 msgstr "Enchainement de questionnaires"
 
-#: surveyChaining.php:190 surveyChaining.php:232 surveyChaining.php:247
+#: surveyChaining.php:234 surveyChaining.php:276 surveyChaining.php:291
 msgid "None"
 msgstr "Aucun"
 
-#: surveyChaining.php:192
+#: surveyChaining.php:236
 msgid "Next survey (by default)."
 msgstr "Prochain questionnaire (par défaut)"
 
-#: surveyChaining.php:199 surveyChaining.php:274
+#: surveyChaining.php:243 surveyChaining.php:318
 msgid "Send email to"
 msgstr "Envoyer un message électronique à"
 
-#: surveyChaining.php:200 surveyChaining.php:275
+#: surveyChaining.php:244 surveyChaining.php:319
 msgid "You can use Expression Manager with question code"
 msgstr "Vous pouvez utiliser des expressions avec des codes de questions"
 
-#: surveyChaining.php:206 surveyChaining.php:281
+#: surveyChaining.php:250 surveyChaining.php:325
 msgid "Mail template to use"
 msgstr "Modèle de courriel à utiliser"
 
-#: surveyChaining.php:208 surveyChaining.php:283
+#: surveyChaining.php:252 surveyChaining.php:327
 msgid "Invitation (Default)"
 msgstr "Invitation (défaut)"
 
-#: surveyChaining.php:211 surveyChaining.php:286
+#: surveyChaining.php:255 surveyChaining.php:330
 msgid "Invitation"
 msgstr "Invitation"
 
-#: surveyChaining.php:212 surveyChaining.php:287
+#: surveyChaining.php:256 surveyChaining.php:331
 msgid "Reminder"
 msgstr "Rappel"
 
-#: surveyChaining.php:213 surveyChaining.php:288
+#: surveyChaining.php:257 surveyChaining.php:332
 msgid "Register"
 msgstr "Enregistrement"
 
-#: surveyChaining.php:214 surveyChaining.php:289
+#: surveyChaining.php:258 surveyChaining.php:333
 msgid "Admin notification"
 msgstr "Notification administrateur"
 
-#: surveyChaining.php:215 surveyChaining.php:290
+#: surveyChaining.php:259 surveyChaining.php:334
 msgid "Admin detailed response"
 msgstr "Détail de la réponse à l'administrateur"
 
-#: surveyChaining.php:220
+#: surveyChaining.php:264
 msgid "Next survey"
 msgstr "Prochain questionnaire"
 
-#: surveyChaining.php:234
+#: surveyChaining.php:278
 msgid "Question determining the following survey"
 msgstr "Question déterminant le questionnaire suivant"
 
-#: surveyChaining.php:241
+#: surveyChaining.php:285
 msgid ""
 "Only single choice question type can be used for survey selection. The list "
 "of available answer update after save this settings."
@@ -79,47 +105,47 @@ msgstr ""
 "Seule les questions à choix unique peuvent être utilisées. La liste des "
 "réponses possibles sera mise à jour après sauvegarde des paramètres."
 
-#: surveyChaining.php:244
+#: surveyChaining.php:288
 msgid "Surveys determined by a question inside this survey"
 msgstr "Questionnaires déterminé par une question dans ce questionnaire"
 
-#: surveyChaining.php:249
+#: surveyChaining.php:293
 msgid "Current default"
 msgstr "Par défaut actuellement"
 
-#: surveyChaining.php:267
+#: surveyChaining.php:311
 msgid "Next survey according to the choice"
 msgstr "Questionnaire suivant déterminés par le choix"
 
-#: surveyChaining.php:295
+#: surveyChaining.php:340
 #, php-format
 msgid "Next survey for %s (%s)"
 msgstr "Prochain questionnaire pour %s (%s)"
 
-#: surveyChaining.php:302
+#: surveyChaining.php:347
 msgid "Survey chaining settings"
 msgstr "Paramètre d‘enchainement de questionnaire"
 
-#: surveyChaining.php:637 surveyChaining.php:647
+#: surveyChaining.php:686 surveyChaining.php:696
 msgid "Database update"
 msgstr "Mise à jour de la base de donnée"
 
-#: surveyChaining.php:638
+#: surveyChaining.php:687
 #, php-format
 msgid "The database for plugin %s has been created (version %s)."
 msgstr "La base de données pour l‘extension %s a était créée (version %s)"
 
-#: surveyChaining.php:648
+#: surveyChaining.php:697
 #, php-format
 msgid "The database for plugin %s has been upgraded to version %s."
 msgstr ""
 "La base de donnée pour l‘extension %s a était mise à jour à la version %s"
 
-#: surveyChaining.php:667
+#: surveyChaining.php:716
 msgid "Warning : previous survey selected don't exist currently."
 msgstr "Attention : le questionnaire sélectionné n‘existe pas actuellement."
 
-#: surveyChaining.php:671
+#: surveyChaining.php:720
 msgid ""
 "Warning : current survey selected don't have token table, you must enable "
 "token before."
@@ -127,14 +153,14 @@ msgstr ""
 "Attention : le questionnaire sélectionné ne possède pas de table "
 "d‘invitation, vous devez activer les invitations."
 
-#: surveyChaining.php:674
+#: surveyChaining.php:723
 msgid ""
 "Warning : current survey selected don't have token answer persistance enable."
 msgstr ""
 "Attention : le questionnaire sélectionné n‘à pas la persistance des réponses "
 "activées."
 
-#: surveyChaining.php:678
+#: surveyChaining.php:727
 msgid ""
 "Warning : survey selected and current survey didn't have any correspondig "
 "question."
@@ -142,12 +168,22 @@ msgstr ""
 "Attention : le questionnaire et le questionnaire sélectionné n‘on pas de "
 "réponses correspondantes."
 
-#: surveyChaining.php:680
+#: surveyChaining.php:729
 #, php-format
 msgid "Survey selected and current survey have this correspondig question: %s"
 msgstr ""
 "Le questionnaire et le questionnaire sélectionné on comme code de questions "
 "correspondant : %s"
+
+#: surveyChaining.php:737
+msgid "Set common question to read only"
+msgstr "Passez les questions communes en lecture seule"
+
+#: surveyChaining.php:742
+msgid "Warning : You don't have enough permission on selected survey."
+msgstr ""
+"Attention : vous n‘avez pas les permissions nécessaire sur le questionnaire "
+"sélectionné."
 
 #: views/settings.php:25 views/settings.php:34
 msgid "Save"
