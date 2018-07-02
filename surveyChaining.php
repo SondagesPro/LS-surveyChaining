@@ -3,10 +3,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018 Denis Chenu <https://www.sondages.pro>
+ * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.12.0
+ * @version 0.12.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -386,11 +386,12 @@ class surveyChaining extends PluginBase {
         if(!$nextSurvey) {
             $nextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
         }
-        $this->log($this->gT("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
 
         if(!$nextSurvey) {
             return;
         }
+
+        $this->log($this->gT("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
             $this->log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING);
@@ -471,7 +472,7 @@ class surveyChaining extends PluginBase {
         }
 
         if($oNextSurvey->getHasTokensTable() && !$oNextSurvey->getIsAnonymized() && $oToken) {
-            if($this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage)) {
+            if($this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage,$oResponse->id)) {
                 // All done
                 return;
             }
@@ -531,7 +532,7 @@ class surveyChaining extends PluginBase {
      * @throw Exception
      * @return boolean
      */
-    private function _sendSurveyChainingTokenEmail($nextSurvey,$oToken,$mailType = 'invite')
+    private function _sendSurveyChainingTokenEmail($nextSurvey,$oToken,$mailType = 'invite',$srid=null)
     {
         $sToken = $oToken->token;
         $sLanguage = $oToken->language;
@@ -539,7 +540,7 @@ class surveyChaining extends PluginBase {
         foreach($oToken->attributes as $attribute=>$value){
             $aReplacements[strtoupper($attribute)]=$value;
         }
-        $aReplacements["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index/sid/{$nextSurvey}",array('lang'=>$sLanguage,'token'=>$sToken));
+        $aReplacements["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index",array('sid'=>$nextSurvey,'lang'=>$sLanguage,'token'=>$sToken,'srid'=>$srid));
         if($this->_sendSurveyChainingEmail($nextSurvey,$oToken->email,$sLanguage,$mailType,$aReplacements) ) {
             /* @todo did we need to test sent ? */
             $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
