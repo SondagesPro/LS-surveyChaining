@@ -35,20 +35,21 @@ class surveyChaining extends PluginBase {
     var $done = false;
 
     public function init() {
-        //~ $this->subscribe('beforeSurveySettings');
-        //~ $this->subscribe('newSurveySettings');
-
-        $this->subscribe('beforeToolsMenuRender');
-
-        $this->subscribe('afterSurveyComplete');
+        /* Config must be set before all other */
         $oPlugin = Plugin::model()->find("name = :name",array("name"=>get_class($this)));
         if($oPlugin && $oPlugin->active) {
           $this->_setConfig();
         }
+        /* Add menu in tool menu */
+        $this->subscribe('beforeToolsMenuRender');
+        /* Add menu in tool menu */
+        $this->subscribe('afterSurveyComplete');
+        /* */
         $this->subscribe('beforeControllerAction');
-
+        /* */
         $this->subscribe('newDirectRequest');
-
+        /* when survey is deleted : must delete all related links */
+        $this->subscribe('afterSurveyDelete');
     }
 
     /** @inheritdoc **/
@@ -110,38 +111,14 @@ class surveyChaining extends PluginBase {
         ));
     }
     /** @inheritdoc **/
-    public function afterModelDelete()
+    public function afterSurveyDelete()
     {
-        /* Delete related links */
-        if($className == 'SurveyDynamic' || $className == 'Response') {
-            $sid = str_replace(array('{{survey_','}}'),array('',''),$oModel->tableName());
-            $srid = isset($oModel->id) ? $oModel->id : null;
-            if($srid) {
-                $countDeleted = \surveyChaining\models\chainingResponseLink::deleteByResponse($sid,$srid);
-                $this->log("Deleted $countDeleted chainingResponseLink for survey $sid , response $srid",\CLogger::LEVEL_TRACE);
-            }
-        }
         /* Delete all link when set a survey is deleted */
-        if($className == 'Survey') {
-            $sid = isset($oModel->sid) ? $oModel->sid : null;
-            if($oModel->sid && $oModel->active != 'Y') {
-                $countDeleted = \surveyChaining\models\chainingResponseLink::deleteBySurvey($sid);
-                $this->log("Deleted $countDeleted chainingResponseLink for survey $sid",\CLogger::LEVEL_TRACE);
-            }
-        }
-    }
-
-    /** @inheritdoc **/
-    public function afterModelSave()
-    {
-        $oModel = $this->getEvent()->get('model');
-        $className = get_class($oModel);
-        /* Delete all link when set a survey to inactive (@todo : test it) */
-        if($className == 'Survey') {
-        $sid = isset($oModel->sid) ? $oModel->sid : null;
-            if($oModel->sid && $oModel->active != 'Y') {
-                $countDeleted = \surveyChaining\models\chainingResponseLink::deleteBySurvey($sid);
-                $this->log("Deleted $countDeleted chainingResponseLink for survey $sid",\CLogger::LEVEL_TRACE);
+        $oSurvey = $this->getEvent()->get('model');
+            if($oSurvey->sid) {
+                $deleted = \surveyChaining\models\chainingResponseLink::model()->deleteAll("prevsid = :prevsid OR nextsid =:nextsid",array(':prevsid'=>$oSurvey->sid,':nextsid'=>$oSurvey->sid));
+                if($deleted>0) { // Don't log each time, can be saved for something other …
+                $this->log(sprintf("%d chainingResponseLink deleted for %d",$deleted,$oSurvey->sid),CLogger::LEVEL_INFO);
             }
         }
     }
@@ -386,7 +363,6 @@ class surveyChaining extends PluginBase {
         if(!$nextSurvey) {
             $nextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
         }
-
         if(!$nextSurvey) {
             return;
         }
@@ -479,6 +455,8 @@ class surveyChaining extends PluginBase {
         }
         if($this->_reloadAnyResponseExist()) {
             $this->_sendSurveyChainingReloadEmail($nextSurvey,$oResponse->id,$sEmail,$nextMessage,$oToken);
+        } else {
+            $this->log("reloadAnyResponse not activated for surveyChaining, can create next reponse",'error');
         }
     }
 
@@ -510,7 +488,7 @@ class surveyChaining extends PluginBase {
         /* Get survey link */
         $token = isset($oToken->token) ? $oToken->token : null;
         $responseLink = \reloadAnyResponse\models\responseLink::setResponseLink($nextSurvey,$iResponse,$token);
-        if(!$responseLink) {
+        if($responseLink->hasErrors()) {
             $this->log("Unable to save response reload link for {$iResponse} survey {$nextSurvey}",\CLogger::LEVEL_ERROR);
             $this->log(CVarDumper::dumpAsString($responseLink->getErrors()),CLogger::LEVEL_ERROR);
             return false;
