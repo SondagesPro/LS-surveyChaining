@@ -211,7 +211,7 @@ class surveyChaining extends PluginBase {
                     $this->set('nextMessage_'.$code, App()->getRequest()->getPost('nextMessage_'.$code), 'Survey', $surveyId);
                 }
             }
-            if(App()->getRequest()->getPost('save'.get_class($this)=='redirect')) {
+            if(App()->getRequest()->getPost('save'.get_class($this))=='redirect') {
                 Yii::app()->getController()->redirect(Yii::app()->getController()->createUrl('admin/survey',array('sa'=>'view','surveyid'=>$surveyId)));
             }
         }
