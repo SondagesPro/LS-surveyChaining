@@ -221,7 +221,8 @@ class surveyChaining extends PluginBase {
             'findExistingLink' => array(
                 'type' => 'boolean',
                 'label' => $this->gT("Update existing response if exist."),
-                'help' => $this->gT("If you check this settings and a chain already exist with this respone, previous response was updated. else a new empty response was updated."),
+                'help' => $this->gT("If you check this settings and a chain already exist with this respone, previous response was updated, else a new empty response was updated. If you want to keep history : disable this setting."),
+                'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
                 'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
             ),
             'nextEmail' => array(
@@ -302,7 +303,6 @@ class surveyChaining extends PluginBase {
                     'findExistingLink_'.$code => array(
                         'type' => 'boolean',
                         'label' => $this->gT("Update existing response if exist."),
-                        'help' => $this->gT("If you check this settings and a chain already exist with this respone, previous response was updated. else a new empty response was updated."),
                         'current'=>$this->get('findExistingLink_'.$code, 'Survey', $surveyId,1),
                     ),
                     'nextEmail_'.$code => array(
