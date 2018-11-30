@@ -6,7 +6,7 @@
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.13.0
+ * @version 0.13.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -740,17 +740,19 @@ class surveyChaining extends PluginBase {
             return CHtml::tag("div",array('class'=>"text-warning"),$this->gT("Warning : previous survey selected don't exist currently."));
         }
         $aStringReturn = array();
+        $surveyLink = CHtml::link($this->gT("survey selected"),array('admin/survey/sa/view','surveyid'=>$selectedSurveyId));
+        tracevar($surveyLink);
         if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token table, you must enable token before."));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->gT("Warning : current %s don't have token table, you must enable token before."),$surveyLink));
         }
         if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y" && $this->_reloadAnyResponseExist()) {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : current survey selected don't have token answer persistance enable."));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->gT("Warning : current %s don't have token answer persistance enable."),$surveyLink));
         }
         $aSameCodes = $this->_getSameCodes($surveyId,$selectedSurveyId);
         if(empty($aSameCodes)) {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),$this->gT("Warning : survey selected and current survey didn't have any correspondig question."));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->gT("Warning : %s and current survey didn't have any correspondig question."),$surveyLink));
         } else {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("Survey selected and current survey have this correspondig question: %s"),implode(",",$aSameCodes)));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("The %s and current survey have this correspondig question: %s"),$surveyLink,implode(",",$aSameCodes)));
             /* Find if answersAsReadonly is activated */
             $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
             if ($oAnswersAsReadonly && $oAnswersAsReadonly->active) {
