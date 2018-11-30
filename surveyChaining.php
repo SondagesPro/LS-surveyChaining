@@ -6,7 +6,7 @@
  * @copyright 2018 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.12.1
+ * @version 0.13.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -167,6 +167,7 @@ class surveyChaining extends PluginBase {
         if(App()->getRequest()->getPost('save'.get_class($this))) {
             PluginSetting::model()->deleteAll("plugin_id = :pluginid AND model = :model AND model_id = :sid",array(":pluginid"=>$this->id,":model"=>'Survey',':sid'=>$surveyId));
             $this->set('nextSurvey', App()->getRequest()->getPost('nextSurvey'), 'Survey', $surveyId);
+            $this->set('findExistingLink', App()->getRequest()->getPost('findExistingLink'), 'Survey', $surveyId);
             $this->set('nextEmail', App()->getRequest()->getPost('nextEmail'), 'Survey', $surveyId);
             $this->set('nextMessage', App()->getRequest()->getPost('nextMessage'), 'Survey', $surveyId);
 
@@ -184,6 +185,7 @@ class surveyChaining extends PluginBase {
                 foreach($aoAnswers as $oAnswers) {
                     $code = $oAnswers->code;
                     $this->set('nextSurvey_'.$code, App()->getRequest()->getPost('nextSurvey_'.$code), 'Survey', $surveyId);
+                    $this->set('findExistingLink_'.$code, App()->getRequest()->getPost('findExistingLink_'.$code), 'Survey', $surveyId);
                     $this->set('nextEmail_'.$code, App()->getRequest()->getPost('nextEmail_'.$code), 'Survey', $surveyId);
                     $this->set('nextMessage_'.$code, App()->getRequest()->getPost('nextMessage_'.$code), 'Survey', $surveyId);
                 }
@@ -215,6 +217,12 @@ class surveyChaining extends PluginBase {
                 'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                 'current'=>$this->get('nextSurvey', 'Survey', $surveyId,null),
                 'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey', 'Survey', $surveyId,null)),
+            ),
+            'findExistingLink' => array(
+                'type' => 'boolean',
+                'label' => $this->gT("Update existing response if exist."),
+                'help' => $this->gT("If you check this settings and a chain already exist with this respone, previous response was updated. else a new empty response was updated."),
+                'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
             ),
             'nextEmail' => array(
                 'type' => 'string',
@@ -291,6 +299,12 @@ class surveyChaining extends PluginBase {
                         'current'=> intval($this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                         'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                     ),
+                    'findExistingLink_'.$code => array(
+                        'type' => 'boolean',
+                        'label' => $this->gT("Update existing response if exist."),
+                        'help' => $this->gT("If you check this settings and a chain already exist with this respone, previous response was updated. else a new empty response was updated."),
+                        'current'=>$this->get('findExistingLink_'.$code, 'Survey', $surveyId,1),
+                    ),
                     'nextEmail_'.$code => array(
                         'type' => 'string',
                         'label' => $this->gT("Send email to"),
@@ -346,6 +360,7 @@ class surveyChaining extends PluginBase {
         $choiceQuestion = $this->get('choiceQuestion', 'Survey', $surveyId,null);
         $nextEmailSetting = 'nextEmail';
         $nextMessageSetting = 'nextMessage';
+        $existingLinkSetting = 'findExistingLink';
 
         $currentResponse = $this->pluginManager->getAPI()->getResponse($surveyId, $responseId);
         $currentChoice = null;
@@ -357,6 +372,7 @@ class surveyChaining extends PluginBase {
                 if($nextSurvey) {
                     $nextEmailSetting = 'nextEmail_'.$currentChoice;
                     $nextMessageSetting = 'nextMessage_'.$currentChoice;
+                    $existingLinkSetting = 'findExistingLink_'.$currentChoice;
                 }
             }
         }
@@ -387,14 +403,41 @@ class surveyChaining extends PluginBase {
             $this->log($this->gT("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING);
             return;
         }
-        /* Find if previous response */
-        $chainingResponseLink = \surveyChaining\models\chainingResponseLink::model()->find(
-            "prevsid = :prevsid AND prevsrid = :prevsrid AND nextsid = :nextsid",
-            array(':prevsid'=>$surveyId,':prevsrid'=>$responseId,':nextsid'=>$nextSurvey)
-        );
+        $nextsrid = null;
+        if($this->get($existingLinkSetting, 'Survey', $surveyId,1)) {
+            /* Find if previous response */
+            $chainingResponseLink = \surveyChaining\models\chainingResponseLink::model()->find(
+                "prevsid = :prevsid AND nextsid = :nextsid AND prevsrid = :prevsrid",
+                array(':prevsid'=>$nextSurvey,':nextsid'=>$surveyId,':prevsrid'=>$responseId)
+            );
+            if(!empty($chainingResponseLink)) {
+                $nextsrid = $chainingResponseLink->nextsrid;
+            }
+            /* If don't have : get the inverse */
+            if(empty($chainingResponseLink)) {
+                $chainingResponseLinkInverse = \surveyChaining\models\chainingResponseLink::model()->find(
+                    "prevsid = :prevsid AND nextsid = :nextsid AND nextsrid = :nextsrid",
+                    array(':prevsid'=>$nextSurvey,':nextsid'=>$surveyId,':nextsrid'=>$responseId)
+                );
+                if(!empty($chainingResponseLinkInverse)) {
+                    $nextsrid = $chainingResponseLinkInverse->prevsrid;
+                }
+            }
+        }
         $oResponse = null;
-        if($chainingResponseLink) {
-            $oResponse = Response::model($nextSurvey)->findByPk($chainingResponseLink->nextsrid);
+        if($nextsrid) {
+            $oResponse = Response::model($nextSurvey)->findByPk($nextsrid);
+            if(empty($oResponse)) {
+                $this->log($this->gT("A chaining between $surveyId and $nextSurvey but {$chainingResponseLink->nextsrid} not found. We delete all links."),\CLogger::LEVEL_WARNING);
+                \surveyChaining\models\chainingResponseLink::model()->deleteAll(
+                    "prevsid = :prevsid AND nextsid = :nextsid AND prevsrid = :prevsrid",
+                    array(':prevsid'=>$nextSurvey,':nextsid'=>$surveyId,':prevsrid'=>$responseId)
+                );
+                \surveyChaining\models\chainingResponseLink::model()->deleteAll(
+                    "prevsid = :prevsid AND nextsid = :nextsid AND nextsrid = :nextsrid",
+                    array(':prevsid'=>$nextSurvey,':nextsid'=>$surveyId,':nextsrid'=>$responseId)
+                );
+            }
         }
         $oToken = null;
         if($oNextSurvey->getHasTokensTable() && !$oNextSurvey->getIsAnonymized()) {
@@ -426,6 +469,7 @@ class surveyChaining extends PluginBase {
             $this->log(CVarDumper::dumpAsString($oResponse->getErrors()),CLogger::LEVEL_ERROR);
             return;
         }
+
         /* save links between responses */
         if(!$chainingResponseLink) {
             $chainingResponseLink = new \surveyChaining\models\chainingResponseLink;
