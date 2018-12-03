@@ -58,16 +58,6 @@ class surveyChaining extends PluginBase {
       $this->_setDb();
     }
 
-    public function beforeSurveySettings()
-    {
-
-    }
-    
-    public function newSurveySettings()
-    {
-
-    }
-
     /** */
     public function newDirectRequest()
     {
