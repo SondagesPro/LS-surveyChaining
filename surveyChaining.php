@@ -3,10 +3,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018 Denis Chenu <http://www.sondages.pro>
+ * @copyright 2018-2019 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.13.1
+ * @version 0.13.2
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -318,7 +318,6 @@ class surveyChaining extends PluginBase {
                         'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
                     ),
                 );
-                //~ tracevar($aNextSettings);
                 $aSettings[sprintf($this->gT("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->answer,1,60,"…"))] = $aNextSettings;
             }
 
@@ -453,6 +452,10 @@ class surveyChaining extends PluginBase {
         $oResponse->startlanguage = App()->getLanguage();
         if($oToken && !$oNextSurvey->getIsAnonymized()) {
             $oResponse->token = $oToken->token;
+        }
+        if($oSurvey->datestamp == "Y") {
+            $oResponse->stardate = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
+            $oResponse->datestamp = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
         }
         if(!$oResponse->save()) {
             $this->log("Unable to save response for survey {$surveyId}, response {$responseId} for $nextSurvey",\CLogger::LEVEL_ERROR);
@@ -731,7 +734,6 @@ class surveyChaining extends PluginBase {
         }
         $aStringReturn = array();
         $surveyLink = CHtml::link($this->gT("survey selected"),array('admin/survey/sa/view','surveyid'=>$selectedSurveyId));
-        tracevar($surveyLink);
         if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->gT("Warning : current %s don't have token table, you must enable token before."),$surveyLink));
         }
