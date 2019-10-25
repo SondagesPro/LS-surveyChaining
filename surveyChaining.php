@@ -6,7 +6,7 @@
  * @copyright 2018-2019 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.13.2
+ * @version 0.13.3
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -453,8 +453,8 @@ class surveyChaining extends PluginBase {
         if($oToken && !$oNextSurvey->getIsAnonymized()) {
             $oResponse->token = $oToken->token;
         }
-        if($oSurvey->datestamp == "Y") {
-            $oResponse->stardate = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
+        if($oNextSurvey->datestamp == "Y") {
+            $oResponse->startdate = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
             $oResponse->datestamp = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
         }
         if(!$oResponse->save()) {
@@ -744,7 +744,7 @@ class surveyChaining extends PluginBase {
         if(empty($aSameCodes)) {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->gT("Warning : %s and current survey didn't have any correspondig question."),$surveyLink));
         } else {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("The %s and current survey have this correspondig question: %s"),$surveyLink,implode(",",$aSameCodes)));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->gT("The %s and current survey have this correspondig question: %s"),$surveyLink,implode(", ",$aSameCodes)));
             /* Find if answersAsReadonly is activated */
             $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
             if ($oAnswersAsReadonly && $oAnswersAsReadonly->active) {
