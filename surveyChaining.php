@@ -6,7 +6,7 @@
  * @copyright 2018-2019 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.13.3
+ * @version 0.14.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -392,6 +392,21 @@ class surveyChaining extends PluginBase {
             $this->log($this->gT("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING);
             return;
         }
+        /* Find upload QuestionType */
+        $aUploadColumns = array();
+        $oUploadQuestionsType = \Question::model()->findAll(array(
+            'select' => 'title, sid,gid,qid',
+            'condition' => "sid = :sid and language = :language",
+            'params' => array(":sid"=>$nextSurvey,":language"=>Yii::app()->getlanguage()),
+        ));
+        if(!empty($oUploadQuestionsType)) {
+            foreach($oUploadQuestionsType as $oQuestion) {
+                $sqga = $oQuestion->sid."X".$oQuestion->gid."X".$oQuestion->qid;
+                if(in_array($sqga,$nextExistingCodeToColumn)) {
+                    $aUploadColumns[$oQuestion->title] = $sqga;
+                }
+            }
+        }
         $nextsrid = null;
         if($this->get($existingLinkSetting, 'Survey', $surveyId,1)) {
             /* Find if previous response */
@@ -462,7 +477,32 @@ class surveyChaining extends PluginBase {
             $this->log(CVarDumper::dumpAsString($oResponse->getErrors()),CLogger::LEVEL_ERROR);
             return;
         }
-
+        /* Copy uploaded files */
+        foreach($aUploadColumns as $sUploadColumn) {
+            $uploaddir = Yii::app()->getConfig("uploaddir");
+            if(!empty($oResponse->$sUploadColumn)) {
+                $responseJson = $oResponse->$sUploadColumn;
+                $aUploadedFiles = @json_decode($responseJson,1);
+                if(!empty($aUploadedFiles)) {
+                    foreach($aUploadedFiles as $aUploadedFile) {
+                        $file = "{$uploaddir}/surveys/{$surveyId}/files/{$aUploadedFile['filename']}";
+                        if(is_file($file)) {
+                            if(!is_dir("{$uploaddir}/surveys/{$nextSurvey}")) {
+                                mkdir("{$uploaddir}/surveys/{$nextSurvey}");
+                            }
+                            if(!is_dir("{$uploaddir}/surveys/{$nextSurvey}/files")) {
+                                mkdir("{$uploaddir}/surveys/{$nextSurvey}/files");
+                            }
+                            if(!copy($file,"{$uploaddir}/surveys/{$nextSurvey}/files/{$aUploadedFile['filename']}")) {
+                                $this->log("Unable to copy {$aUploadedFile['filename']} from {$surveyId} to {$nextSurvey}",\CLogger::LEVEL_ERROR);
+                            }
+                        } else {
+                            $this->log("Unable to find {$aUploadedFile['filename']} file in survey {$surveyId}",\CLogger::LEVEL_ERROR);
+                        }
+                    }
+                }
+            }
+        }
         /* save links between responses */
         if(!$chainingResponseLink) {
             $chainingResponseLink = new \surveyChaining\models\chainingResponseLink;
