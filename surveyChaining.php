@@ -6,7 +6,7 @@
  * @copyright 2018-2019 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.14.0
+ * @version 0.15.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -345,6 +345,10 @@ class surveyChaining extends PluginBase {
     {
         $nextSurvey = $oNextSurvey = null;
         $surveyId = $this->getEvent()->get('surveyId');
+        $oCurrentSurvey = Survey::model()->findByPk($surveyId);
+        if(empty($oCurrentSurvey)) {
+            return;
+        }
         $responseId = $this->getEvent()->get('responseId');
         $choiceQuestion = $this->get('choiceQuestion', 'Survey', $surveyId,null);
         $nextEmailSetting = 'nextEmail';
@@ -452,8 +456,25 @@ class surveyChaining extends PluginBase {
             }
             /* Else create the token */
             if(!$oToken) {
-                /* To set attributes ? */
                 $aAttributes = array();
+                /* To set attributes by current token if exist */
+                if($oCurrentSurvey->getHasTokensTable() && !$oCurrentSurvey->getIsAnonymized()) {
+                    $oCurrentToken = Token::model($surveyId)->find("token = :token",array(':token'=>$currentResponse['token']));
+                    if(!empty($oCurrentToken)) {
+                        $aAttributes = $oCurrentToken->attributes;
+                        unset($aAttributes['token']);
+                        unset($aAttributes['email']);
+                        unset($aAttributes['emailstatus']);
+                        unset($aAttributes['blacklisted']);
+                        unset($aAttributes['sent']);
+                        unset($aAttributes['remindersent']);
+                        unset($aAttributes['remindercount']);
+                        unset($aAttributes['completed']);
+                        unset($aAttributes['usesleft']);
+                        unset($aAttributes['validfrom']);
+                        unset($aAttributes['validuntil']);
+                    }
+                }
                 $oToken = $this->_createToken($nextSurvey,$sEmail,$aAttributes);
             }
         }
@@ -483,21 +504,26 @@ class surveyChaining extends PluginBase {
             if(!empty($oResponse->$sUploadColumn)) {
                 $responseJson = $oResponse->$sUploadColumn;
                 $aUploadedFiles = @json_decode($responseJson,1);
-                if(!empty($aUploadedFiles)) {
+                if(!empty($aUploadedFiles) && is_array($aUploadedFiles)) {
                     foreach($aUploadedFiles as $aUploadedFile) {
-                        $file = "{$uploaddir}/surveys/{$surveyId}/files/{$aUploadedFile['filename']}";
-                        if(is_file($file)) {
-                            if(!is_dir("{$uploaddir}/surveys/{$nextSurvey}")) {
-                                mkdir("{$uploaddir}/surveys/{$nextSurvey}");
-                            }
-                            if(!is_dir("{$uploaddir}/surveys/{$nextSurvey}/files")) {
-                                mkdir("{$uploaddir}/surveys/{$nextSurvey}/files");
-                            }
-                            if(!copy($file,"{$uploaddir}/surveys/{$nextSurvey}/files/{$aUploadedFile['filename']}")) {
-                                $this->log("Unable to copy {$aUploadedFile['filename']} from {$surveyId} to {$nextSurvey}",\CLogger::LEVEL_ERROR);
+                        if(!empty($aUploadedFile['filename'])) {
+                            $file = "{$uploaddir}/surveys/{$surveyId}/files/{$aUploadedFile['filename']}";
+                            if(is_file($file)) {
+                                if(!is_dir("{$uploaddir}/surveys/{$nextSurvey}")) {
+                                    mkdir("{$uploaddir}/surveys/{$nextSurvey}");
+                                }
+                                if(!is_dir("{$uploaddir}/surveys/{$nextSurvey}/files")) {
+                                    mkdir("{$uploaddir}/surveys/{$nextSurvey}/files");
+                                }
+                                if(!copy($file,"{$uploaddir}/surveys/{$nextSurvey}/files/{$aUploadedFile['filename']}")) {
+                                    $this->log("Unable to copy {$aUploadedFile['filename']} from {$surveyId} to {$nextSurvey}",\CLogger::LEVEL_ERROR);
+                                }
+                            } else {
+                                $this->log("Unable to find {$aUploadedFile['filename']} file in survey {$surveyId}",\CLogger::LEVEL_ERROR);
                             }
                         } else {
-                            $this->log("Unable to find {$aUploadedFile['filename']} file in survey {$surveyId}",\CLogger::LEVEL_ERROR);
+                                $this->log("Invalid updloaded files in survey {$surveyId}",\CLogger::LEVEL_ERROR);
+                                $this->log(CVarDumper::dumpAsString($aUploadedFile),\CLogger::LEVEL_WARNING);
                         }
                     }
                 }
@@ -684,6 +710,12 @@ class surveyChaining extends PluginBase {
     private function _createToken($nextSurvey,$email="",$aAttributes=array())
     {
         $oToken = Token::create($nextSurvey);
+        $aValidAttributes = $oToken->attributes;
+        foreach($aAttributes as $attribute=>$value) {
+            if(in_array($attribute,$aValidAttributes)) {
+                $oToken->$attribute = $value;
+            }
+        }
         $oToken->validfrom = date("Y-m-d H:i:s");
         $oToken->email = $email;
         $oToken->generateToken();
@@ -692,9 +724,8 @@ class surveyChaining extends PluginBase {
             $language = Survey::model()->findByPk($nextSurvey)->language;
         }
         $oToken->language = $language;
-        /* @todo : set attribute */
         if(!$oToken->save()) {
-            $this->log($this->gT("Unable to create token for $nextSurvey"),\CLogger::LEVEL_WARNING);
+            $this->log($this->gT("Unable to create token for $nextSurvey"),\CLogger::LEVEL_ERROR);
             return null;
         }
         return $oToken;
