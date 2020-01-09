@@ -3,10 +3,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018-2019 Denis Chenu <http://www.sondages.pro>
+ * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.15.0
+ * @version 0.16.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -462,6 +462,8 @@ class surveyChaining extends PluginBase {
                     $oCurrentToken = Token::model($surveyId)->find("token = :token",array(':token'=>$currentResponse['token']));
                     if(!empty($oCurrentToken)) {
                         $aAttributes = $oCurrentToken->attributes;
+                        unset($aAttributes['tid']);
+                        unset($aAttributes['participant_id']);
                         unset($aAttributes['token']);
                         unset($aAttributes['email']);
                         unset($aAttributes['emailstatus']);
