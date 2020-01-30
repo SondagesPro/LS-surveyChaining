@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.16.0
+ * @version 0.16.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -379,7 +379,7 @@ class surveyChaining extends PluginBase {
         $this->log($this->gT("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
-            $this->log($this->gT("Invalid survey selected for $surveyId (didn{t exist)"),\CLogger::LEVEL_WARNING);
+            $this->log($this->gT("Invalid survey selected for $surveyId (didn't exist)"),\CLogger::LEVEL_WARNING);
             return;
         }
         if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
@@ -658,6 +658,10 @@ class surveyChaining extends PluginBase {
 
         $attSubject = 'surveyls_email_'.$mailType.'_subj';
         $attMessage = 'surveyls_email_'.$mailType;
+        if(in_array($mailType,array('admin_notification','admin_responses')) ) {
+            $attSubject = 'email_'.$mailType.'_subj';
+            $attMessage = 'email_'.$mailType;
+        }
         $sSubject = $oSurveyLanguage->$attSubject;
         $sMessage = $oSurveyLanguage->$attMessage;
         $useHtmlEmail = $oSurvey->getIsHtmlEmail();
