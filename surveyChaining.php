@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.17.0
+ * @version 0.17.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -386,7 +386,7 @@ class surveyChaining extends PluginBase {
             $this->log($this->_translate("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
             return;
         }
-        $sEmail = LimeExpressionManager::ProcessStepString($this->get($nextEmailSetting, 'Survey', $surveyId,""),array(),3,1);
+        $sEmail = $this->_EMProcessString($this->get($nextEmailSetting, 'Survey', $surveyId,""));
         /* Ok we get here : do action */
         //~ $oSurvey = Survey::model()->findByPk($surveyId);
         //~ $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
@@ -680,13 +680,13 @@ class surveyChaining extends PluginBase {
             $sMessage = str_replace("@@SURVEYURL@@", $url, $sMessage);
         } // Send a warning if not set ?
 
-        $sSubject = LimeExpressionManager::ProcessStepString($sSubject,$aReplacementFields,3,1);
-        $sMessage = LimeExpressionManager::ProcessStepString($sMessage,$aReplacementFields,3,1);
+        $sSubject = $this->_EMProcessString($sSubject,$aReplacementFields);
+        $sMessage = $this->_EMProcessString($sMessage,$aReplacementFields);
         $mailFromName = $oSurvey->admin;
         $mailFromMail = empty($oSurvey->adminemail) ? App()->getConfig('siteadminemail') : $oSurvey->adminemail;
         $sFrom = !empty($mailFromName) ? "{$mailFromName} <{$mailFromMail}>" : $mailFromMail;
         $sBounce=$oSurvey->bounce_email;
-        $aRecipient = explode(";", LimeExpressionManager::ProcessStepString($sSendTo,$aReplacementFields,3,1));
+        $aRecipient = explode(";", $this->_EMProcessString($sSendTo,$aReplacementFields));
         foreach ($aRecipient as $sRecipient) {
             $sRecipient = trim($sRecipient);
             if (validateEmailAddress($sRecipient)) {
@@ -907,4 +907,22 @@ class surveyChaining extends PluginBase {
         Yii::import('application.helpers.common_helper', true);
         return tableExists('token_'.$surveyId);
      }
+
+    /**
+     * Process a string via expression manager (static way)
+     * @param string $string
+     * @param string[] $replacementFields
+     * @return string
+     */
+    private function _EMProcessString($string, $replacementFields = array())
+    {
+         ;
+        if (intval(Yii::app()->getConfig('versionnumber'))<3) {
+            return \LimeExpressionManager::ProcessString($string, null, $replacementFields, false, 3, 0, false, false, true);
+        }
+        if (version_compare(Yii::app()->getConfig('versionnumber'), "3.6.2", "<")) {
+            return \LimeExpressionManager::ProcessString($string, null, $replacementFields, 3, 0, false, false, true);
+        }
+        return \LimeExpressionManager::ProcessStepString($string, true, 3, $replacementFields);
+    }
 }
