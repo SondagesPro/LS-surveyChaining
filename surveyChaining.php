@@ -664,7 +664,7 @@ class surveyChaining extends PluginBase {
         }
         $sSubject = $oSurveyLanguage->$attSubject;
         $sMessage = $oSurveyLanguage->$attMessage;
-        $useHtmlEmail = $oSurvey->getIsHtmlEmail();
+        $useHtmlEmail = $oSurvey->htmlemail == "Y";
         $aReplacementFields=$aReplacements;
         $aReplacementFields["ADMINNAME"]=$oSurvey->admin;
         $aReplacementFields["ADMINEMAIL"]=$oSurvey->adminemail;
