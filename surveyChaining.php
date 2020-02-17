@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.16.2
+ * @version 0.17.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -382,7 +382,7 @@ class surveyChaining extends PluginBase {
             $this->log($this->_translate("Invalid survey selected for $surveyId (didn't exist)"),\CLogger::LEVEL_WARNING);
             return;
         }
-        if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
+        if(!$this->_hasTokenTable($oNextSurvey->sid) && !$this->_reloadAnyResponseExist()) {
             $this->log($this->_translate("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
             return;
         }
@@ -448,7 +448,7 @@ class surveyChaining extends PluginBase {
             }
         }
         $oToken = null;
-        if($oNextSurvey->getHasTokensTable() && !$oNextSurvey->getIsAnonymized()) {
+        if($this->_hasTokenTable($oNextSurvey->sid) && !$oNextSurvey->getIsAnonymized()) {
             /* find token */
             if($oResponse) {
                 $oToken = Token::model($nextSurvey)->find("token = :token",array(':token'=>$oResponse->token));
@@ -458,7 +458,7 @@ class surveyChaining extends PluginBase {
             if(!$oToken) {
                 $aAttributes = array();
                 /* To set attributes by current token if exist */
-                if($oCurrentSurvey->getHasTokensTable() && !$oCurrentSurvey->getIsAnonymized()) {
+                if($this->_hasTokenTable($oCurrentSurvey->sid) && !$oCurrentSurvey->getIsAnonymized()) {
                     $oCurrentToken = Token::model($surveyId)->find("token = :token",array(':token'=>$currentResponse['token']));
                     if(!empty($oCurrentToken)) {
                         $aAttributes = $oCurrentToken->attributes;
@@ -552,7 +552,7 @@ class surveyChaining extends PluginBase {
             $nextMessage = 'invite';
         }
 
-        if($oNextSurvey->getHasTokensTable() && !$oNextSurvey->getIsAnonymized() && $oToken) {
+        if($this->_hasTokenTable($oNextSurvey->sid) && !$oNextSurvey->getIsAnonymized() && $oToken) {
             if($this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage,$oResponse->id)) {
                 // All done
                 return;
@@ -577,7 +577,7 @@ class surveyChaining extends PluginBase {
     private function _sendSurveyChainingReloadEmail($nextSurvey,$iResponse,$sEmail,$mailType = 'invite')
     {
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
-        if($oNextSurvey->getHasTokensTable()) {
+        if ($this->_hasTokenTable($oNextSurvey->sid)) {
             /* Always create token */
             $oToken = $this->_createToken($nextSurvey);
             /* Set token to exiting response if needed */
@@ -811,10 +811,10 @@ class surveyChaining extends PluginBase {
         }
         $aStringReturn = array();
         $surveyLink = CHtml::link($this->_translate("survey selected"),array('admin/survey/sa/view','surveyid'=>$selectedSurveyId));
-        if(!$oNextSurvey->getHasTokensTable() && !$this->_reloadAnyResponseExist()) {
+        if(!$this->_hasTokenTable($oNextSurvey->sid) && !$this->_reloadAnyResponseExist()) {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->_translate("Warning : current %s don't have token table, you must enable token before."),$surveyLink));
         }
-        if($oNextSurvey->getHasTokensTable() && $oNextSurvey->tokenanswerspersistence!="Y" && $this->_reloadAnyResponseExist()) {
+        if($this->_hasTokenTable($oNextSurvey->sid) && $oNextSurvey->tokenanswerspersistence!="Y" && $this->_reloadAnyResponseExist()) {
             $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->_translate("Warning : current %s don't have token answer persistance enable."),$surveyLink));
         }
         $aSameCodes = $this->_getSameCodes($surveyId,$selectedSurveyId);
@@ -893,5 +893,18 @@ class surveyChaining extends PluginBase {
             return $this->gT($string,$sEscapeMode,$sLanguage);
         }
         return gT($string,$sEscapeMode,$sLanguage);
-  }
+    }
+
+    /**
+     * Check if survey as a token table
+     * For 2.X compatibility
+     * @see \Survey::model()->getHasTokensTable()
+     * @param integer $surveyId
+     * @return boolean
+     */
+     private function _hasTokenTable($surveyId)
+     {
+        Yii::import('application.helpers.common_helper', true);
+        return tableExists('token_'.$surveyId);
+     }
 }
