@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.17.1
+ * @version 0.17.2
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -445,6 +445,7 @@ class surveyChaining extends PluginBase {
                     "prevsid = :prevsid AND nextsid = :nextsid AND nextsrid = :nextsrid",
                     array(':prevsid'=>$nextSurvey,':nextsid'=>$surveyId,':nextsrid'=>$responseId)
                 );
+                $chainingResponseLink = null;
             }
         }
         $oToken = null;
@@ -532,7 +533,7 @@ class surveyChaining extends PluginBase {
             }
         }
         /* save links between responses */
-        if(!$chainingResponseLink) {
+        if(empty($chainingResponseLink)) {
             $chainingResponseLink = new \surveyChaining\models\chainingResponseLink;
             $chainingResponseLink->prevsid = $surveyId;
             $chainingResponseLink->prevsrid = $responseId;
