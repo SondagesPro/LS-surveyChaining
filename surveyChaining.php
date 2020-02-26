@@ -905,8 +905,6 @@ class surveyChaining extends PluginBase {
      */
      private function _hasTokenTable($surveyId)
      {
-		tracevar([$surveyId,tableExists('token_'.$surveyId)]);
-
         Yii::import('application.helpers.common_helper', true);
         return tableExists('tokens_'.$surveyId);
      }
