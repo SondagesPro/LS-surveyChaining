@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.17.2
+ * @version 0.17.3
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -905,8 +905,10 @@ class surveyChaining extends PluginBase {
      */
      private function _hasTokenTable($surveyId)
      {
+		tracevar([$surveyId,tableExists('token_'.$surveyId)]);
+
         Yii::import('application.helpers.common_helper', true);
-        return tableExists('token_'.$surveyId);
+        return tableExists('tokens_'.$surveyId);
      }
 
     /**
