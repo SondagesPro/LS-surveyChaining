@@ -4,7 +4,7 @@ Chaining one survey to another one.
 
 Current purpose is validation of survey by another person.
 
-* This plugin is compatible with 3.X version, and can be tested in 3.73 and 4.X version*
+* This plugin is compatible with 3.X version, and can be tested in 2.73 version*
 
 ## Installtion
 
