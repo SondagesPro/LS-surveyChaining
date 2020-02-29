@@ -27,6 +27,7 @@ You can use a single choice question to choose another survey according to answe
 All issue and merge request must be done in [base repo](https://gitlab.com/SondagesPro/SurveyAccess/surveyChaining) (currently gitlab).
 
 Issue must be posted with complete information : LimeSurvey version and build number, web server version, PHP version, SQL type and version number … 
+
 **Reminder:** no warranty of functionnal system operation is offered on this software. If you want a professional offer: please [contact Sondages Pro](https://extensions.sondages.pro/about/contact.html).
 
 ## Home page & Copyright
