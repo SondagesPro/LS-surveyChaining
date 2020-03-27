@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.17.5
+ * @version 0.18.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -387,6 +387,7 @@ class surveyChaining extends PluginBase {
             return;
         }
         $sEmail = $this->_EMProcessString($this->get($nextEmailSetting, 'Survey', $surveyId,""));
+
         /* Ok we get here : do action */
         //~ $oSurvey = Survey::model()->findByPk($surveyId);
         //~ $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
@@ -582,7 +583,7 @@ class surveyChaining extends PluginBase {
             /* Always create token */
             $oToken = $this->_createToken($nextSurvey);
             /* Set token to exiting response if needed */
-            if(!$oNextSurvey->getIsAnonymized()) {
+            if($oToken && !$oNextSurvey->getIsAnonymized()) {
                 $oResponse = Response::model($nextSurvey)->findByPk($iResponse);
                 if($oResponse && $oResponse->token) {
                     $oToken->token = $oResponse->token;
@@ -710,11 +711,11 @@ class surveyChaining extends PluginBase {
     /**
      * Create a token for a survey
      * @param integer $nextSurvey id
-     * @param string $email
+     * @param string $originalEmail
      * @param array $aAttributes to create
      * @return \Token|null
      */
-    private function _createToken($nextSurvey,$email="",$aAttributes=array())
+    private function _createToken($nextSurvey, $originalEmail = "", $aAttributes = array())
     {
         $oToken = Token::create($nextSurvey);
         $aValidAttributes = $oToken->attributes;
@@ -724,7 +725,23 @@ class surveyChaining extends PluginBase {
             }
         }
         $oToken->validfrom = date("Y-m-d H:i:s");
-        $oToken->email = $email;
+        /* Fixing email */
+        if(!empty($originalEmail)) {
+            $aEmails = preg_split("/(,|;)/", $originalEmail);
+            $aFixedEmails = array();
+            foreach($aEmails as $emailAdress) {
+                $emailAdress = trim($emailAdress);
+                if(validateEmailAddress($emailAdress)) {
+                    $aFixedEmails[] = $emailAdress;
+                }
+            }
+            if(!empty($originalEmail) && count($aEmails) != count($aFixedEmails)) {
+                $this->log($this->_translate("Invalid email adress in $originalEmail"),\CLogger::LEVEL_ERROR);
+            }
+            if(!empty($aFixedEmails)) {
+                $oToken->email = implode(";",$aFixedEmails);
+            }
+        }
         $oToken->generateToken();
         $language = App()->getLanguage();
         if(!in_array($language,Survey::model()->findByPk($nextSurvey)->getAllLanguages())) {
