@@ -1,10 +1,12 @@
 # surveyChaining for LimeSurvey
 
-Chaining one survey to another one.
+Chaining one survey with another one.
 
 Current purpose is validation of survey by another person.
 
-* This plugin is compatible with 3.X version, and can be tested in 2.73 version*
+- *This plugin is compatible and tested with 3.18 version*
+- This plugin can can be tested in 2.73 version, this was not tested.
+- This plugin can can be tested in 4.0 and up version, this was not tested.
 
 ## Installtion
 
