@@ -6,11 +6,12 @@ Current purpose is validation of survey by another person.
 
 - *This plugin is compatible and tested with 3.18 version*
 - This plugin can can be tested in 2.73 version, this was not tested.
-- This plugin can can be tested in 4.0 and up version, this was not tested.
 
 ## Installtion
 
-With token enable survey : you don't need another plugin. Without token you **need** [reloadAnyResponse](https://gitlab.com/SondagesPro/coreAndTools/reloadAnyResponse) plugin activated.
+With token enable survey : you **need** [getQuestionInformation](https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation) plugin activated.
+
+Without token you **need** [reloadAnyResponse](https://gitlab.com/SondagesPro/coreAndTools/reloadAnyResponse) plugin activated.
 
 ### Via GIT
 - Go to your LimeSurvey Directory (version up to 2.50)

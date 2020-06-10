@@ -6,7 +6,7 @@
  * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 0.18.0
+ * @version 1.0.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -89,7 +89,7 @@ class surveyChaining extends PluginBase {
         if(empty($aSameCode)) {
             $this->_renderJson(array('error'=>array('message'=>$this->_translate("Survey selected and current survey didn't have any correspondig question."))));
         }
-        $aQidColumnsToCode = \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($destSurveyId,true);
+        $aQidColumnsToCode = \getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($destSurveyId,true);
         $aQidToDo = array_filter($aQidColumnsToCode, function($aColumnToCode) use ($aSameCode) {
             return count(array_intersect($aSameCode,$aColumnToCode));
         });
@@ -187,6 +187,9 @@ class surveyChaining extends PluginBase {
 
         $aData=array();
         $aData['warningString'] = null;
+        if(!Yii::getPathOfAlias('getQuestionInformation')) {
+            $aData['warningString'] = sprintf($this->_translate("You must add an activate %s for this plugin."),"<a href='https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation'>getQuestionInformation</a>");
+        }
         $aSettings=array();
         /* Basic settings */
         //$aWholeSurveys = Survey::model()->with('permission')
@@ -343,6 +346,9 @@ class surveyChaining extends PluginBase {
      */
     public function afterSurveyComplete()
     {
+        if(!Yii::getPathOfAlias('getQuestionInformation')) {
+            return;
+        }
         $nextSurvey = $oNextSurvey = null;
         $surveyId = $this->getEvent()->get('surveyId');
         $oCurrentSurvey = Survey::model()->findByPk($surveyId);
@@ -389,9 +395,7 @@ class surveyChaining extends PluginBase {
         $sEmail = $this->_EMProcessString($this->get($nextEmailSetting, 'Survey', $surveyId,""));
 
         /* Ok we get here : do action */
-        //~ $oSurvey = Survey::model()->findByPk($surveyId);
-        //~ $currentColumnsToCode = \surveyChaining\surveyCodeHelper::getColumnsToCode($surveyId);
-        $nextCodeToColumn =  array_flip(\surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($nextSurvey));
+        $nextCodeToColumn =  array_flip(\getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($nextSurvey));
         $nextExistingCodeToColumn = array_intersect_key($nextCodeToColumn,$currentResponse);
         if(empty($nextExistingCodeToColumn)) {
             $this->log($this->_translate("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING);
@@ -871,8 +875,11 @@ class surveyChaining extends PluginBase {
     */
     private function _getSameCodes($firstSurveyId,$secondSurveyId)
     {
-        $firstSurveyCodes =  \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($firstSurveyId);
-        $secondSurveyCodes =  \surveyChaining\helpers\surveyCodeHelper::getColumnsToCode($secondSurveyId);
+        if(!Yii::getPathOfAlias('getQuestionInformation')) {
+            return array();
+        }
+        $firstSurveyCodes =  \getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($firstSurveyId);
+        $secondSurveyCodes =  \getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($secondSurveyId);
         return array_intersect($firstSurveyCodes,$secondSurveyCodes);
     }
 
