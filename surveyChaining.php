@@ -3,10 +3,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018-2020 Denis Chenu <http://www.sondages.pro>
+ * @copyright 2018-2021 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.0.0
+ * @version 1.0.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -392,6 +392,7 @@ class surveyChaining extends PluginBase {
             $this->log($this->_translate("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
             return;
         }
+        tracevar($this->get($nextEmailSetting, 'Survey', $surveyId,""));
         $sEmail = $this->_EMProcessString($this->get($nextEmailSetting, 'Survey', $surveyId,""));
 
         /* Ok we get here : do action */
