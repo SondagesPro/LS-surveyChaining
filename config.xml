@@ -4,13 +4,13 @@
         <name>surveyChaining</name>
         <type>plugin</type>
         <creationDate>2018-04-03</creationDate>
-        <lastUpdate>2020-06-10</lastUpdate>
+        <lastUpdate>2021-11-15</lastUpdate>
         <author>Denis Chenu</author>
         <authorUrl>https://extensions.sondages.pro/</authorUrl>
         <supportUrl>https://support.sondages.pro/</supportUrl>
-        <version>1.0.2</version>
+        <version>1.0.3</version>
         <license>GNU Affero General Public License v3.0</license>
-        <description><![CDATA[Chaining one survey with another one.<br> Warning : not tested in 4.X, please report issue on gitlab repository.]]></description>
+        <description><![CDATA[Chaining one survey with another one.]]></description>
     </metadata>
     <compatibility>
         <version>2.73</version>
