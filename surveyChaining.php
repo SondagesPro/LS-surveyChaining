@@ -6,7 +6,7 @@
  * @copyright 2018-2021 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.0.3
+ * @version 1.0.4
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -347,6 +347,7 @@ class surveyChaining extends PluginBase {
     public function afterSurveyComplete()
     {
         if(!Yii::getPathOfAlias('getQuestionInformation')) {
+            $this->log("You must add an activate getQuestionInformation for this plugin.", \CLogger::LEVEL_ERROR);
             return;
         }
         $nextSurvey = $oNextSurvey = null;
@@ -385,7 +386,7 @@ class surveyChaining extends PluginBase {
         $this->log($this->_translate("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
-            $this->log($this->_translate("Invalid survey selected for $surveyId (didn't exist)"),\CLogger::LEVEL_WARNING);
+            $this->log($this->("Invalid survey selected for $surveyId (didn't exist)"),\CLogger::LEVEL_WARNING);
             return;
         }
         if(!$this->_hasTokenTable($oNextSurvey->sid) && !$this->_reloadAnyResponseExist()) {
@@ -440,6 +441,10 @@ class surveyChaining extends PluginBase {
         $oResponse = null;
         if($nextsrid) {
             $oResponse = Response::model($nextSurvey)->findByPk($nextsrid);
+            if($oResponse  && !$oNextSurvey->getIsAllowEditAfterCompletion()) {
+                $oResponse->submitdate = null;
+                $oResponse->save(true , array('submitdate'));
+            }
             if(empty($oResponse)) {
                 $this->log($this->_translate("A chaining between $surveyId and $nextSurvey but {$chainingResponseLink->nextsrid} not found. We delete all links."),\CLogger::LEVEL_WARNING);
                 \surveyChaining\models\chainingResponseLink::model()->deleteAll(
@@ -460,13 +465,14 @@ class surveyChaining extends PluginBase {
                 $oToken = Token::model($nextSurvey)->find("token = :token",array(':token'=>$oResponse->token));
                 $oToken->email = $sEmail;
             }
+            /* If token exist : update if needed */
             if($oToken && !$oNextSurvey->getIsAllowEditAfterCompletion()) {
-                $oToken->completed = "";
+                $oToken->completed = "N";
                 $oToken->usesleft++;
                 if($oToken->usesleft < 1) {
                     $oToken->usesleft = 1;
                 }
-                $oToken->save(fakse , array('completed', 'usesleft'));
+                $oToken->save(true , array('completed', 'usesleft'));
             }
             /* Else create the token */
             if(!$oToken) {
@@ -637,7 +643,6 @@ class surveyChaining extends PluginBase {
         foreach($oToken->attributes as $attribute=>$value){
             $aReplacements[strtoupper($attribute)]=$value;
         }
-
         $aReplacements["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index",array('sid'=>$nextSurvey,'lang'=>$sLanguage,'token'=>$sToken,'srid'=>$srid));
         if($this->_sendSurveyChainingEmail($nextSurvey,$oToken->email,$sLanguage,$mailType,$aReplacements) ) {
             /* @todo did we need to test sent ? */
@@ -885,6 +890,7 @@ class surveyChaining extends PluginBase {
     private function _getSameCodes($firstSurveyId,$secondSurveyId)
     {
         if(!Yii::getPathOfAlias('getQuestionInformation')) {
+            $this->log("You must add an activate getQuestionInformation for this plugin.", \CLogger::LEVEL_ERROR);
             return array();
         }
         $firstSurveyCodes =  \getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($firstSurveyId);
