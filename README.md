@@ -9,9 +9,9 @@ Current purpose is validation of survey by another person.
 
 ## Installtion
 
-With token enable survey : you **need** [getQuestionInformation](https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation) plugin activated.
+You **need** [getQuestionInformation](https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation) plugin activated.
 
-Without token you **need** [reloadAnyResponse](https://gitlab.com/SondagesPro/coreAndTools/reloadAnyResponse) plugin activated.
+Without token or with anonymous survey you **need** [reloadAnyResponse](https://gitlab.com/SondagesPro/coreAndTools/reloadAnyResponse) plugin activated.
 
 ### Via GIT
 - Go to your LimeSurvey Directory (version up to 2.50)
