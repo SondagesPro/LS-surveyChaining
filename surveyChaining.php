@@ -3,10 +3,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018-2021 Denis Chenu <http://www.sondages.pro>
+ * @copyright 2018-2022 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.0.6
+ * @version 1.0.8
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -380,7 +380,21 @@ class surveyChaining extends PluginBase {
         $nextMessageSetting = 'nextMessage';
         $existingLinkSetting = 'findExistingLink';
 
-        $currentResponse = $this->pluginManager->getAPI()->getResponse($surveyId, $responseId);
+        $oCurrentResponse = \Response::model($surveyId)->findByPk($responseId);
+        $aCurrentResponseBySGQ = $oCurrentResponse->getAttributes();
+        $currentCodeToColumn =  \getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($surveyId);
+        $currentResponse = array();
+        if (!empty($aCurrentResponseBySGQ['seed'])) {
+            $currentResponse['seed'] = $aCurrentResponseBySGQ['seed'];
+        }
+        if (!empty($aCurrentResponseBySGQ['token'])) {
+            $currentResponse['token'] = $aCurrentResponseBySGQ['token'];
+        }
+        foreach ($aCurrentResponseBySGQ as $sgq => $value) {
+            if(!empty($currentCodeToColumn[$sgq])) {
+                $currentResponse[$currentCodeToColumn[$sgq]] = $value;
+            }
+        }
         $currentChoice = null;
         if($choiceQuestion) {
             // Find current value of choiceQuestion -if exist)
@@ -412,7 +426,6 @@ class surveyChaining extends PluginBase {
             return;
         }
         $sEmail = $this->_EMProcessString($this->get($nextEmailSetting, 'Survey', $surveyId,""));
-
         /* Ok we get here : do action */
         $nextCodeToColumn =  array_flip(\getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($nextSurvey));
         $nextExistingCodeToColumn = array_intersect_key($nextCodeToColumn,$currentResponse);
@@ -525,6 +538,10 @@ class surveyChaining extends PluginBase {
         foreach($nextExistingCodeToColumn as $code=>$column) {
             $oResponse->$column = $currentResponse[$code];
         }
+        /* Add seed */
+        if (!empty($currentResponse['seed'])) {
+            $oResponse->seed = 'seed';
+        }
         $oResponse->startlanguage = App()->getLanguage();
         if($oToken && !$oNextSurvey->getIsAnonymized()) {
             $oResponse->token = $oToken->token;
@@ -593,13 +610,13 @@ class surveyChaining extends PluginBase {
         if($this->_hasTokenTable($oNextSurvey->sid) && !$oNextSurvey->getIsAnonymized() && $oToken) {
             if($this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage,$oResponse->id)) {
                 // All done
-                return;
             }
+            return;
         }
         if($this->_reloadAnyResponseExist()) {
             $this->_sendSurveyChainingReloadEmail($nextSurvey,$oResponse->id,$sEmail,$nextMessage,$oToken);
         } else {
-            $this->log("reloadAnyResponse not activated for surveyChaining, can create next reponse",'error');
+            $this->log("reloadAnyResponse not activated for surveyChaining, can send next reponse link",'error');
         }
     }
 
@@ -612,10 +629,10 @@ class surveyChaining extends PluginBase {
      * @throw Exception
      * @return boolean
      */
-    private function _sendSurveyChainingReloadEmail($nextSurvey,$iResponse,$sEmail,$mailType = 'invite')
+    private function _sendSurveyChainingReloadEmail($nextSurvey,$iResponse,$sEmail,$mailType = 'invite', $oToken = null)
     {
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
-        if ($this->_hasTokenTable($oNextSurvey->sid)) {
+        if ($this->_hasTokenTable($oNextSurvey->sid) && !empty($oToken->token)) {
             /* Always create token */
             $oToken = $this->_createToken($nextSurvey);
             /* Set token to exiting response if needed */
@@ -626,6 +643,8 @@ class surveyChaining extends PluginBase {
                     $oToken->save();
                 }
             }
+        } else {
+            $oToken = null;
         }
         $aReplacement = array();
         /* Get survey link */
@@ -760,7 +779,7 @@ class surveyChaining extends PluginBase {
                 $oToken->$attribute = $value;
             }
         }
-        $oToken->validfrom = date("Y-m-d H:i:s");
+        $oToken->validfrom = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", Yii::app()->getConfig("timeadjust"));
         /* Fixing email */
         if(!empty($originalEmail)) {
             $aEmails = preg_split("/(,|;)/", $originalEmail);
