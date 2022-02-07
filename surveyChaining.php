@@ -6,7 +6,7 @@
  * @copyright 2018-2021 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.0.5
+ * @version 1.0.6
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -89,15 +89,33 @@ class surveyChaining extends PluginBase {
         if(empty($aSameCode)) {
             $this->_renderJson(array('error'=>array('message'=>$this->_translate("Survey selected and current survey didn't have any correspondig question."))));
         }
-        $aQidColumnsToCode = \getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($destSurveyId,true);
-        $aQidToDo = array_filter($aQidColumnsToCode, function($aColumnToCode) use ($aSameCode) {
-            return count(array_intersect($aSameCode,$aColumnToCode));
-        });
-        foreach(array_keys($aQidToDo) as $qid) {
-            QuestionAttribute::model()->setQuestionAttribute($qid,'readonly',1);
+        $aSameCodeQuestion = array_unique(array_map( function($emCode) {
+            $aEmCode = explode("_", $emCode);
+            return $aEmCode[0]; 
+        },$aSameCode));
+        $aQidDones = array();
+        foreach($aSameCodeQuestion as $qCode) {
+            $oQuestion = Question::model()->find(
+                "title = :title and sid = :sid", 
+                array(
+                    ":title" => $qCode,
+                    ":sid" => $destSurveyId
+                )
+            );
+            if($oQuestion) {
+                QuestionAttribute::model()->setQuestionAttribute($oQuestion->qid, 'readonly', 1);
+                $aQidDones[] = $oQuestion->qid;
+            }
+        }
+        if(empty($aQidDones)) {
+            $this->_renderJson(
+                array(
+                    'error'=>array('message'=>$this->_translate("No question set to readonly."))
+                )
+            );
         }
         $this->_renderJson(array(
-            'success'=>sprintf($this->_translate("Question(s) %s are set to readonly"),implode(',',array_keys($aQidToDo)))
+            'success'=>sprintf($this->_translate("Question(s) %s are set to readonly"),implode(',',array_keys($aQidDones)))
         ));
     }
     /** @inheritdoc **/
