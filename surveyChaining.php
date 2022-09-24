@@ -6,7 +6,7 @@
  * @copyright 2018-2022 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.0.8
+ * @version 1.1.0
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -24,6 +24,10 @@ class surveyChaining extends PluginBase {
     static protected $description = 'Chaining surveys';
     static protected $name = 'surveyChaining';
 
+    public $allowedPublicMethods = [
+        'actionSettings',
+    ];
+
     /**
      * @var integer dbversion
      */
@@ -36,10 +40,7 @@ class surveyChaining extends PluginBase {
 
     public function init() {
         /* Config must be set before all other */
-        $oPlugin = Plugin::model()->find("name = :name",array("name"=>get_class($this)));
-        if($oPlugin && $oPlugin->active) {
-          $this->_setConfig();
-        }
+        Yii::setPathOfAlias('surveyChaining', dirname(__FILE__));
         /* Add menu in tool menu */
         $this->subscribe('beforeToolsMenuRender');
         /* Add menu in tool menu */
@@ -52,7 +53,9 @@ class surveyChaining extends PluginBase {
         $this->subscribe('afterSurveyDelete');
     }
 
-    /** @inheritdoc **/
+    /** @inheritdoc
+     * Set the DB if needed
+     **/
     public function beforeControllerAction()
     {
       $this->_setDb();
@@ -73,21 +76,28 @@ class surveyChaining extends PluginBase {
         if(!$surveyId || !$destSurveyId) {
             throw new CHttpException(500,$this->_translate("This action need a survey and a destination survey id"));
         }
+        if(!Permission::model()->hasSurveyPermission($surveyId,'surveysettings','update')){
+            throw new CHttpException(403);
+        }
+        if (!Permission::model()->hasSurveyPermission($surveyId, 'surveycontent', 'read')) {
+            throw new CHttpException(403, sprintf($this->_translate("You don't have permission to read content on %s"), $surveyId));
+        }
+        if (!Permission::model()->hasSurveyPermission($destSurveyId, 'surveycontent', 'update')) {
+            throw new CHttpException(403, sprintf($this->_translate("You don't have permission to set content on %s"), $destSurveyId));
+        }
         $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
         if (!$oAnswersAsReadonly || !$oAnswersAsReadonly->active) {
             $this->_renderJson(array('error'=>array('message'=>$this->_translate("answersAsReadonly plugin didn't exist or is not activated."))));
         }
-        if(!Permission::model()->hasSurveyPermission($surveyId,'surveysettings','update')){
-            throw new CHttpException(403);
-        }
-        if(!Permission::model()->hasSurveyPermission($destSurveyId,'surveysettings','update')){
-            throw new CHttpException(403,sprintf($this->_translate("You don't have permission on survey %s"),$destSurveyId));
-        }
+
         //~ $oSurvey = Survey::model()->findByPk($surveyId);
         //~ $oDestSurvey = Survey::model()->findByPk($destSurveyId);
         $aSameCode = $this->_getSameCodes($surveyId,$destSurveyId);
         if(empty($aSameCode)) {
-            $this->_renderJson(array('error'=>array('message'=>$this->_translate("Survey selected and current survey didn't have any correspondig question."))));
+            $this->_renderJson(array(
+                'error'=>array('message'=>$this->_translate("Survey selected and current survey didn't have any correspondig question.")),
+                'success' => null,
+            ));
         }
         $aSameCodeQuestion = array_unique(array_map( function($emCode) {
             $aEmCode = explode("_", $emCode);
@@ -110,12 +120,14 @@ class surveyChaining extends PluginBase {
         if(empty($aQidDones)) {
             $this->_renderJson(
                 array(
-                    'error'=>array('message'=>$this->_translate("No question set to readonly."))
+                    'error'=>array('message'=>$this->_translate("No question set to readonly.")),
+                    'success' => null,
                 )
             );
         }
         $this->_renderJson(array(
-            'success'=>sprintf($this->_translate("Question(s) %s are set to readonly"),implode(',',array_keys($aQidDones)))
+            'success'=>sprintf($this->_translate("Question(s) %s are set to readonly"),implode(',',array_keys($aQidDones))),
+            'error' => null
         ));
     }
     /** @inheritdoc **/
@@ -156,6 +168,7 @@ class surveyChaining extends PluginBase {
         }
         $event->append('menuItems', array($menuItem));
     }
+
     /**
      * Main function
      * @param int $surveyId Survey id
@@ -163,6 +176,215 @@ class surveyChaining extends PluginBase {
      * @return string
      */
     public function actionSettings($surveyId)
+    {
+        if (intval(App()->getConfig('versionnumber')) < 4) {
+            return $this->actionSettingsLegacy3LTS($surveyId);
+        }
+        $oSurvey=Survey::model()->findByPk($surveyId);
+        if(!$oSurvey) {
+            throw new CHttpException(404,$this->translate("This survey does not seem to exist."));
+        }
+        if(!Permission::model()->hasSurveyPermission($surveyId,'surveysettings','update')){
+            throw new CHttpException(403);
+        }
+        $aData = array();
+        $aData['warningString'] = null;
+        $aData['pluginClass'] = get_class($this);
+        $aData['surveyId'] = $surveyId;
+        $aData['title'] = $this->_translate("Survey chaining settings");
+        $aData['assetUrl'] = Yii::app()->assetManager->publish(dirname(__FILE__) . '/assets/');
+        $aSettings = array();
+        if (version_compare(App()->getConfig('getQuestionInformationAPI'), "1.13.0") < 0) {
+            $aNoSettings = array(
+                'getQuestionInformation' => array(
+                    'type'=>'info',
+                    'content' => "<p class='alert alert-danger'>" . $this->_translate("You need getQuestionInformation version 1.13 or up for this plugin")
+                )
+            );
+            $aSettings[$this->_translate("Unable to update settings")] = $aNoSettings;
+            $aData['aSettings'] = $aSettings;
+            $content = $this->renderPartial('settings', $aData, true);
+            return $content;
+
+        }
+        if(App()->getRequest()->getPost('save'.get_class($this))) {
+            PluginSetting::model()->deleteAll(
+                "plugin_id = :pluginid AND model = :model AND model_id = :sid",
+                array(":pluginid"=>$this->id,":model"=>'Survey',':sid'=>$surveyId)
+            );
+            $this->set('nextSurvey', App()->getRequest()->getPost('nextSurvey'), 'Survey', $surveyId);
+            $this->set('findExistingLink', App()->getRequest()->getPost('findExistingLink'), 'Survey', $surveyId);
+            $this->set('nextEmail', App()->getRequest()->getPost('nextEmail'), 'Survey', $surveyId);
+            $this->set('nextMessage', App()->getRequest()->getPost('nextMessage'), 'Survey', $surveyId);
+
+            $this->set('choiceQuestion', App()->getRequest()->getPost('choiceQuestion'), 'Survey', $surveyId);
+            if($this->get('choiceQuestion', 'Survey', $surveyId,null)) {
+                $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
+                $oQuestion = Question::model()->find("title=:title",array(":title"=>$title));
+                $aoAnswers = Answer::model()->findAll(array(
+                    'condition' => "qid=:qid",
+                    'order' => 'sortorder ASC',
+                    'params' => array(":qid"=>$oQuestion->qid)
+                ));
+                foreach($aoAnswers as $oAnswers) {
+                    $code = $oAnswers->code;
+                    $this->set('nextSurvey_'.$code, App()->getRequest()->getPost('nextSurvey_'.$code), 'Survey', $surveyId);
+                    $this->set('findExistingLink_'.$code, App()->getRequest()->getPost('findExistingLink_'.$code), 'Survey', $surveyId);
+                    $this->set('nextEmail_'.$code, App()->getRequest()->getPost('nextEmail_'.$code), 'Survey', $surveyId);
+                    $this->set('nextMessage_'.$code, App()->getRequest()->getPost('nextMessage_'.$code), 'Survey', $surveyId);
+                }
+            }
+            if(App()->getRequest()->getPost('save'.get_class($this))=='redirect') {
+                Yii::app()->getController()->redirect(
+                    Yii::app()->getController()->createUrl(
+                        'surveyAdministration/view',
+                        array('surveyid'=>$surveyId)
+                    )
+                );
+            }
+        }
+
+        $aSettings = array();
+        /* Basic settings */
+        //$aWholeSurveys = Survey::model()->with('permission')
+        $aWholeSurveys = Survey::model()
+            ->permission(Yii::app()->user->getId())
+            ->with('defaultlanguage')
+            ->findAll(array('order'=>'surveyls_title'));
+        $sHelpSurveyTable = null;
+        $iNextSurvey = $this->get('nextSurvey', 'Survey', $surveyId,null);
+
+        $aNextSettings = array(
+            'nextSurvey' => array(
+                'type'=>'select',
+                'htmlOptions'=>array(
+                    'empty'=>$this->_translate("None"),
+                ),
+                'label'=>$this->_translate("Next survey (by default)."),
+                'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
+                'current'=>$this->get('nextSurvey', 'Survey', $surveyId,null),
+                'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey', 'Survey', $surveyId,null)),
+            ),
+            'findExistingLink' => array(
+                'type' => 'boolean',
+                'label' => $this->_translate("Update existing response if exist."),
+                'help' => $this->_translate("If you check this settings and a chain already exist with this respone, previous response was updated, else a new empty response was updated. If you want to keep history : disable this setting."),
+                'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
+                'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
+            ),
+            'nextEmail' => array(
+                'type' => 'string',
+                'label' => $this->_translate("Send email to"),
+                'help' => $this->_translate("You can use Expression Manager with question code"),
+                'current'=>$this->get('nextEmail', 'Survey', $surveyId,null),
+
+            ),
+            'nextMessage' => array(
+                'type' => 'select',
+                'label' => $this->_translate("Mail template to use"),
+                'htmlOptions'=>array(
+                    'empty'=>$this->_translate("Invitation (Default)"),
+                ),
+                'options'=>array(
+                    "invite" => $this->_translate("Invitation"),
+                    "remind" => $this->_translate("Reminder"),
+                    "register" => $this->_translate("Register"),
+                    "admin_notification" => $this->_translate("Admin notification"),
+                    "admin_responses" => $this->_translate("Admin detailed response"),
+                ),
+                'current'=>$this->get('nextMessage', 'Survey', $surveyId,null),
+            ),
+        );
+        $aSettings[$this->_translate("Next survey")] = $aNextSettings;
+        $surveyColumnsInformation = new \getQuestionInformation\helpers\surveyColumnsInformation($surveyId,App()->getLanguage());
+        $surveyColumnsInformation->ByEmCode = true;
+        $surveyColumnsInformation->restrictToType = ['L','O','!'];
+        $singleChoicesQuestions = $surveyColumnsInformation->allQuestionListData();
+
+        $aNextQuestionSettings = array(
+            'choiceQuestion' => array(
+                'type'=>'select',
+                'htmlOptions'=>array(
+                    'empty'=>$this->_translate("None"),
+                    'options'=>$singleChoicesQuestions['options'],
+                ),
+                'label'=>$this->_translate("Question determining the following survey"),
+                'options'=>$singleChoicesQuestions['data'],
+                'current'=>$this->get('choiceQuestion', 'Survey', $surveyId,null),
+                'help' => $this->_translate("Only single choice question type can be used for survey selection. The list of available answer update after save this settings."),
+            ),
+        );
+        $aSettings[$this->_translate("Surveys determined by a question inside this survey")] = $aNextQuestionSettings;
+
+        /* Text for default */
+        $sDefaultText = $this->_translate("None");
+        if(!empty($oNextSurvey)) {
+            $sDefaultText = $this->_translate("Current default");
+        }
+        if($this->get('choiceQuestion', 'Survey', $surveyId,null)) {
+            $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
+            $oQuestion = Question::model()->find("sid=:sid and title=:title",array(":sid" => $surveyId, ":title"=>$title));
+            if ($oQuestion) {
+                $answers = \getQuestionInformation\helpers\surveyAnswers::getAnswers($oQuestion, $oSurvey->language);
+                foreach($answers as $code => $answer) {
+                    $aNextSettings = array(
+                        'nextSurvey_'.$code => array(
+                            'type' => 'select',
+                            'htmlOptions' => array(
+                                'empty' => $sDefaultText,
+                            ),
+                            'label' => $this->_translate("Next survey according to the choice"),
+                            'options' =>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
+                            'current'=> intval($this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
+                            'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
+                        ),
+                        'findExistingLink_'.$code => array(
+                            'type' => 'boolean',
+                            'label' => $this->_translate("Update existing response if exist."),
+                            'current'=>$this->get('findExistingLink_'.$code, 'Survey', $surveyId,1),
+                        ),
+                        'nextEmail_'.$code => array(
+                            'type' => 'string',
+                            'label' => $this->_translate("Send email to"),
+                            'help' => $this->_translate("You can use Expression Manager with question code"),
+                            'current'=>$this->get('nextEmail_'.$code, 'Survey', $surveyId,null),
+
+                        ),
+                        'nextMessage_'.$code => array(
+                            'type' => 'select',
+                            'label' => $this->_translate("Mail template to use"),
+                            'htmlOptions'=>array(
+                                'empty'=>$this->_translate("Invitation (Default)"),
+                            ),
+                            'options'=>array(
+                                "invite" => $this->_translate("Invitation"),
+                                "remind" => $this->_translate("Reminder"),
+                                "register" => $this->_translate("Register"),
+                                "admin_notification" => $this->_translate("Admin notification"),
+                                "admin_responses" => $this->_translate("Admin detailed response"),
+                            ),
+                            'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
+                        ),
+                    );
+                    $aSettings[sprintf($this->_translate("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($answer,1,60,"…"))] = $aNextSettings;
+                }
+            }
+
+        }
+        $aData['aSettings']=$aSettings;
+        $content = $this->renderPartial('settings', $aData, true);
+
+        return $content;
+    }
+
+    /**
+     * Main function for 3LST legacy
+     * @see actionSettings
+     * @param int $surveyId Survey id
+     *
+     * @return string
+     */
+    private function actionSettingsLegacy3LTS($surveyId)
     {
         $oSurvey=Survey::model()->findByPk($surveyId);
         if(!$oSurvey) {
@@ -348,10 +570,7 @@ class surveyChaining extends PluginBase {
         $aData['surveyId']=$surveyId;
         $aData['title']=$this->_translate("Survey chaining settings");
         $aData['aSettings']=$aSettings;
-        $aData['assetUrl']=Yii::app()->assetManager->publish(dirname(__FILE__) . '/assets/');
-        if(App()->getConfig("debug")) {
-            $aData['assetUrl'] = Yii::app()->request->getBaseUrl()."/plugins/surveyChaining/assets";
-        }
+        $aData['assetUrl']=Yii::app()->assetManager->publish(dirname(__FILE__) . '/assetslegacy3LTS/');
 
         $aSettings=array();
         $content = $this->renderPartial('settings', $aData, true);
@@ -437,8 +656,8 @@ class surveyChaining extends PluginBase {
         $aUploadColumns = array();
         $oUploadQuestionsType = \Question::model()->findAll(array(
             'select' => 'title, sid,gid,qid',
-            'condition' => "sid = :sid and language = :language",
-            'params' => array(":sid"=>$nextSurvey,":language"=>Yii::app()->getlanguage()),
+            'condition' => "sid = :sid",
+            'params' => array(":sid"=>$nextSurvey),
         ));
         if(!empty($oUploadQuestionsType)) {
             foreach($oUploadQuestionsType as $oQuestion) {
@@ -608,13 +827,13 @@ class surveyChaining extends PluginBase {
         }
 
         if($this->_hasTokenTable($oNextSurvey->sid) && !$oNextSurvey->getIsAnonymized() && $oToken) {
-            if($this->_sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage,$oResponse->id)) {
+            if($this->sendSurveyChainingTokenEmail($nextSurvey,$oToken,$nextMessage,$oResponse->id)) {
                 // All done
             }
             return;
         }
         if($this->_reloadAnyResponseExist()) {
-            $this->_sendSurveyChainingReloadEmail($nextSurvey,$oResponse->id,$sEmail,$nextMessage,$oToken);
+            $this->sendSurveyChainingReloadEmail($nextSurvey,$oResponse->id,$sEmail,$nextMessage,$oToken);
         } else {
             $this->log("reloadAnyResponse not activated for surveyChaining, can send next reponse link",'error');
         }
@@ -629,7 +848,83 @@ class surveyChaining extends PluginBase {
      * @throw Exception
      * @return boolean
      */
-    private function _sendSurveyChainingReloadEmail($nextSurvey,$iResponse,$sEmail,$mailType = 'invite', $oToken = null)
+    private function sendSurveyChainingReloadEmail($nextSurvey, $iResponse, $sEmail, $mailType = 'invite', $oToken = null)
+    {
+        if (intval(App()->getConfig('versionnumber')) < 4) {
+            return $this->_sendSurveyChainingReloadEmailLegacy3LTS($nextSurvey);
+        }
+        $oNextSurvey = Survey::model()->findByPk($nextSurvey);
+        if ($oNextSurvey->getHasTokensTable() && !empty($oToken)) {
+            /* Always create token */
+            $oToken = $this->_createToken($nextSurvey);
+            /* Set token to exiting response if needed (must not happen ?) */
+            if($oToken && !$oNextSurvey->getIsAnonymized()) {
+                $oResponse = Response::model($nextSurvey)->findByPk($iResponse);
+                if($oResponse && $oResponse->token) {
+                    $oToken->token = $oResponse->token;
+                    $oToken->save();
+                }
+            }
+        } else {
+            $oToken = null;
+        }
+        $token = isset($oToken->token) ? $oToken->token : null;
+        $responseLink = \reloadAnyResponse\models\responseLink::setResponseLink($nextSurvey, $iResponse, $token);
+        if($responseLink->hasErrors()) {
+            $this->log("Unable to save response reload link for {$iResponse} survey {$nextSurvey}",\CLogger::LEVEL_ERROR);
+            $this->log(CVarDumper::dumpAsString($responseLink->getErrors()),CLogger::LEVEL_ERROR);
+            return false;
+        }
+        $language = App()->getLanguage();
+        $mailer = new \LimeMailer();
+        $mailer->emailType = 'surveychainingreloademail';
+        $mailer->setSurvey($nextSurvey);
+        if ($token) {
+            $mailer->replaceTokenAttributes = true;
+            $mailer->setToken($oToken->token);
+            $language = $oToken->language;
+        }
+        $aSurveyInfo = getSurveyInfo($nextSurvey, $language);
+        /* Replace specific word for rwsubject and rawbody */
+        $specificReplace = array(
+            '{SURVEYURL}' => '{SURVEYCHAININGURL}',
+            '%%SURVEYURL%%' => '%%SURVEYCHAININGURL%%',
+        );
+        $mailer->addUrlsPlaceholders('SURVEYCHAININGURL');
+        $mailer->rawSubject = str_replace(
+            array_keys($specificReplace),
+            $specificReplace,
+            $aSurveyInfo['email_' . $mailType . '_subj']
+        );
+        $mailer->rawBody = str_replace(
+            array_keys($specificReplace),
+            $specificReplace,
+            $aSurveyInfo['email_' . $mailType]
+        );
+        $mailer->aReplacements["SURVEYURL"] = $mailer->aReplacements["SURVEYCHAININGURL"] = $responseLink->getStartUrl();
+        $mailer->setTo($sEmail);
+        $success = $mailer->sendMessage();
+        if ($success) {
+            if ($oToken) {
+                /* @todo did we need to test sent ? */
+                $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
+                $oToken->save();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * send email with SURVEYURL to new survey using reloadAnyResponse plugin
+     * @param integer $iSurvey
+     * @param integer $iResponse
+     * @param string $sEmail
+     * @param string $mailType
+     * @throw Exception
+     * @return boolean
+     */
+    private function _sendSurveyChainingReloadEmailLegacy3LTS($nextSurvey,$iResponse,$sEmail,$mailType = 'invite', $oToken = null)
     {
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if ($this->_hasTokenTable($oNextSurvey->sid) && !empty($oToken->token)) {
@@ -649,7 +944,7 @@ class surveyChaining extends PluginBase {
         $aReplacement = array();
         /* Get survey link */
         $token = isset($oToken->token) ? $oToken->token : null;
-        $responseLink = \reloadAnyResponse\models\responseLink::setResponseLink($nextSurvey,$iResponse,$token);
+        $responseLink = \reloadAnyResponse\models\responseLink::setResponseLink($nextSurvey, $iResponse, $token);
         if($responseLink->hasErrors()) {
             $this->log("Unable to save response reload link for {$iResponse} survey {$nextSurvey}",\CLogger::LEVEL_ERROR);
             $this->log(CVarDumper::dumpAsString($responseLink->getErrors()),CLogger::LEVEL_ERROR);
@@ -669,10 +964,64 @@ class surveyChaining extends PluginBase {
      * @param integer $iSurvey
      * @param \Tokent $oToken \Token
      * @param string $mailType
+     * @param integer $srid $response->id
+     * @return boolean
+     */
+    private function sendSurveyChainingTokenEmail($nextSurvey, $oToken, $mailType = 'invite', $srid = null)
+    {
+        if (intval(App()->getConfig('versionnumber')) < 4) {
+            return $this->_sendSurveyChainingTokenEmailLegacy3LTS($nextSurvey);
+        }
+        $mailer = new \LimeMailer();
+        $mailer->emailType = 'surveychainingtokenemail';
+        $mailer->setSurvey($nextSurvey);
+        $mailer->replaceTokenAttributes = true;
+        $mailer->setToken($oToken->token);
+        $aSurveyInfo = getSurveyInfo($nextSurvey, $oToken->language);
+        /* Replace specific word for rwsubject and rawbody */
+        $specificReplace = array(
+            '{SURVEYURL}' => '{SURVEYCHAININGURL}',
+            '%%SURVEYURL%%' => '%%SURVEYCHAININGURL%%',
+        );
+        $mailer->addUrlsPlaceholders('SURVEYCHAININGURL');
+        $mailer->rawSubject = str_replace(
+            array_keys($specificReplace),
+            $specificReplace,
+            $aSurveyInfo['email_' . $mailType . '_subj']
+        );
+        $mailer->rawBody = str_replace(
+            array_keys($specificReplace),
+            $specificReplace,
+            $aSurveyInfo['email_' . $mailType]
+        );
+        $mailer->aReplacements["SURVEYURL"] = $mailer->aReplacements["SURVEYCHAININGURL"] = App()->getController()->createAbsoluteUrl(
+            "survey/index",
+            array(
+                'sid' => $nextSurvey,
+                'token' => $oToken->token,
+                'lang'=> $oToken->language,
+                'srid' => $srid
+            )
+        );
+        $success = $mailer->sendMessage();
+        if ($success) {
+            /* @todo did we need to test sent ? */
+            $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
+            $oToken->save();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * send email with SURVEYURL to new survey
+     * @param integer $iSurvey
+     * @param \Tokent $oToken \Token
+     * @param string $mailType
      * @throw Exception
      * @return boolean
      */
-    private function _sendSurveyChainingTokenEmail($nextSurvey,$oToken,$mailType = 'invite',$srid=null)
+    private function _sendSurveyChainingTokenEmailLegacy3LTS($nextSurvey,$oToken,$mailType = 'invite',$srid=null)
     {
         $sToken = $oToken->token;
         $sLanguage = $oToken->language;
@@ -699,7 +1048,7 @@ class surveyChaining extends PluginBase {
      * @param array $aReplacements
      * @return boolean (success or not)
      */
-    private function _sendSurveyChainingEmail($nextSurvey,$sSendTo,$sLanguage = '',$mailType = 'invite',$aReplacements = array()) {
+    private function _sendSurveyChainingEmailLegacy3LTS($nextSurvey,$sSendTo,$sLanguage = '',$mailType = 'invite',$aReplacements = array()) {
         global $maildebug;
         if(!in_array($mailType,array('invite','remind','register','confirm','admin_notification','admin_responses')) ) {
             if(defined('YII_DEBUG') && YII_DEBUG) {
@@ -808,14 +1157,6 @@ class surveyChaining extends PluginBase {
             return null;
         }
         return $oToken;
-    }
-    /**
-     * Update some Yii and LS config
-     * Set some var
-     */
-    private function _setConfig()
-    {
-        Yii::setPathOfAlias('surveyChaining', dirname(__FILE__));
     }
 
   /**
