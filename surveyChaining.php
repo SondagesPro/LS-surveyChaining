@@ -6,7 +6,7 @@
  * @copyright 2018-2022 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.1.0
+ * @version 1.3.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -868,6 +868,10 @@ class surveyChaining extends PluginBase {
         } else {
             $oToken = null;
         }
+        if (empty($sEmail)) {
+            $this->log("Empty email set for {$iResponse} in survey {$nextSurvey}",\CLogger::LEVEL_INFO);
+            return;
+        }
         $token = isset($oToken->token) ? $oToken->token : null;
         $responseLink = \reloadAnyResponse\models\responseLink::setResponseLink($nextSurvey, $iResponse, $token);
         if($responseLink->hasErrors()) {
@@ -971,6 +975,10 @@ class surveyChaining extends PluginBase {
     {
         if (intval(App()->getConfig('versionnumber')) < 4) {
             return $this->_sendSurveyChainingTokenEmailLegacy3LTS($nextSurvey);
+        }
+        if (empty($oToken->email)) {
+            $this->log("Empty email set for {$oToken->token} in survey {$nextSurvey}",\CLogger::LEVEL_INFO);
+            return;
         }
         $mailer = new \LimeMailer();
         $mailer->emailType = 'surveychainingtokenemail';
