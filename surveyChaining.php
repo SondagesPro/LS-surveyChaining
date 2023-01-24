@@ -6,7 +6,7 @@
  * @copyright 2018-2022 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.1
+ * @version 1.3.2
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -325,7 +325,11 @@ class surveyChaining extends PluginBase {
             $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
             $oQuestion = Question::model()->find("sid=:sid and title=:title",array(":sid" => $surveyId, ":title"=>$title));
             if ($oQuestion) {
-                $answers = \getQuestionInformation\helpers\surveyAnswers::getAnswers($oQuestion, $oSurvey->language);
+                if (intval(App()->getConfig('versionnumber') <= 3)) {
+                    $answers = \getQuestionInformation\helpers\surveyAnswers::getAnswers($oQuestion);
+                } else {
+                    $answers = \getQuestionInformation\helpers\surveyAnswers::getAnswers($oQuestion, App()->getLanguage());
+                }
                 foreach($answers as $code => $answer) {
                     $aNextSettings = array(
                         'nextSurvey_'.$code => array(
