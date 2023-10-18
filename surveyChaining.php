@@ -74,20 +74,20 @@ class surveyChaining extends PluginBase {
         $surveyId = App()->getRequest()->getParam('sid');
         $destSurveyId = App()->getRequest()->getParam('destsid');
         if(!$surveyId || !$destSurveyId) {
-            throw new CHttpException(500,$this->_translate("This action need a survey and a destination survey id"));
+            throw new CHttpException(500,$this->translate("This action need a survey and a destination survey id"));
         }
         if(!Permission::model()->hasSurveyPermission($surveyId,'surveysettings','update')){
             throw new CHttpException(403);
         }
         if (!Permission::model()->hasSurveyPermission($surveyId, 'surveycontent', 'read')) {
-            throw new CHttpException(403, sprintf($this->_translate("You don't have permission to read content on %s"), $surveyId));
+            throw new CHttpException(403, sprintf($this->translate("You don't have permission to read content on %s"), $surveyId));
         }
         if (!Permission::model()->hasSurveyPermission($destSurveyId, 'surveycontent', 'update')) {
-            throw new CHttpException(403, sprintf($this->_translate("You don't have permission to set content on %s"), $destSurveyId));
+            throw new CHttpException(403, sprintf($this->translate("You don't have permission to set content on %s"), $destSurveyId));
         }
         $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
         if (!$oAnswersAsReadonly || !$oAnswersAsReadonly->active) {
-            $this->_renderJson(array('error'=>array('message'=>$this->_translate("answersAsReadonly plugin didn't exist or is not activated."))));
+            $this->_renderJson(array('error'=>array('message'=>$this->translate("answersAsReadonly plugin didn't exist or is not activated."))));
         }
 
         //~ $oSurvey = Survey::model()->findByPk($surveyId);
@@ -95,7 +95,7 @@ class surveyChaining extends PluginBase {
         $aSameCode = $this->_getSameCodes($surveyId,$destSurveyId);
         if(empty($aSameCode)) {
             $this->_renderJson(array(
-                'error'=>array('message'=>$this->_translate("Survey selected and current survey didn't have any correspondig question.")),
+                'error'=>array('message'=>$this->translate("Survey selected and current survey didn't have any correspondig question.")),
                 'success' => null,
             ));
         }
@@ -120,13 +120,13 @@ class surveyChaining extends PluginBase {
         if(empty($aQidDones)) {
             $this->_renderJson(
                 array(
-                    'error'=>array('message'=>$this->_translate("No question set to readonly.")),
+                    'error'=>array('message'=>$this->translate("No question set to readonly.")),
                     'success' => null,
                 )
             );
         }
         $this->_renderJson(array(
-            'success'=>sprintf($this->_translate("Question(s) %s are set to readonly"),implode(',',array_keys($aQidDones))),
+            'success'=>sprintf($this->translate("Question(s) %s are set to readonly"),implode(',',array_keys($aQidDones))),
             'error' => null
         ));
     }
@@ -149,7 +149,7 @@ class surveyChaining extends PluginBase {
         $event = $this->getEvent();
         $surveyId = $event->get('surveyId');
         $aMenuItem = array(
-            'label' => $this->_translate('Survey chaining'),
+            'label' => $this->translate('Survey chaining'),
             'iconClass' => 'fa fa-recycle',
             'href' => Yii::app()->createUrl(
                 'admin/pluginhelper',
@@ -191,17 +191,17 @@ class surveyChaining extends PluginBase {
         $aData['warningString'] = null;
         $aData['pluginClass'] = get_class($this);
         $aData['surveyId'] = $surveyId;
-        $aData['title'] = $this->_translate("Survey chaining settings");
+        $aData['title'] = $this->translate("Survey chaining settings");
         $aData['assetUrl'] = Yii::app()->assetManager->publish(dirname(__FILE__) . '/assets/');
         $aSettings = array();
         if (version_compare(App()->getConfig('getQuestionInformationAPI'), "1.13.0") < 0) {
             $aNoSettings = array(
                 'getQuestionInformation' => array(
                     'type'=>'info',
-                    'content' => "<p class='alert alert-danger'>" . $this->_translate("You need getQuestionInformation version 1.13 or up for this plugin")
+                    'content' => "<p class='alert alert-danger'>" . $this->translate("You need getQuestionInformation version 1.13 or up for this plugin")
                 )
             );
-            $aSettings[$this->_translate("Unable to update settings")] = $aNoSettings;
+            $aSettings[$this->translate("Unable to update settings")] = $aNoSettings;
             $aData['aSettings'] = $aSettings;
             $content = $this->renderPartial('settings', $aData, true);
             return $content;
@@ -258,44 +258,45 @@ class surveyChaining extends PluginBase {
             'nextSurvey' => array(
                 'type'=>'select',
                 'htmlOptions'=>array(
-                    'empty'=>$this->_translate("None"),
+                    'empty'=>$this->translate("None"),
                 ),
-                'label'=>$this->_translate("Next survey (by default)."),
+                'label'=>$this->translate("Next survey (by default)."),
                 'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                 'current'=>$this->get('nextSurvey', 'Survey', $surveyId,null),
                 'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey', 'Survey', $surveyId,null)),
             ),
             'findExistingLink' => array(
                 'type' => 'boolean',
-                'label' => $this->_translate("Update existing response if exist."),
-                'help' => $this->_translate("If you check this settings and a chain already exist with this respone, previous response was updated, else a new empty response was updated. If you want to keep history : disable this setting."),
+                'label' => $this->translate("Update existing response if exist."),
+                'help' => $this->translate("If you check this settings and a chain already exist with this respone, previous response was updated, else a new empty response was updated. If you want to keep history : disable this setting."),
                 'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
                 'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
             ),
             'nextEmail' => array(
                 'type' => 'string',
-                'label' => $this->_translate("Send email to"),
-                'help' => $this->_translate("You can use Expression Manager with question code"),
+                'label' => $this->translate("Send email to"),
+                'help' => $this->translate("You can use Expression Manager with question code"),
                 'current'=>$this->get('nextEmail', 'Survey', $surveyId,null),
 
             ),
             'nextMessage' => array(
                 'type' => 'select',
-                'label' => $this->_translate("Mail template to use"),
+                'label' => $this->translate("Mail template to use"),
+                'help' => $this->translate("Mail template from the next survey. If a condition is defined: template depends on the condition."),
                 'htmlOptions'=>array(
-                    'empty'=>$this->_translate("Invitation (Default)"),
+                    'empty'=>$this->translate("Invitation (Default)"),
                 ),
                 'options'=>array(
-                    "invite" => $this->_translate("Invitation"),
-                    "remind" => $this->_translate("Reminder"),
-                    "register" => $this->_translate("Register"),
-                    "admin_notification" => $this->_translate("Admin notification"),
-                    "admin_responses" => $this->_translate("Admin detailed response"),
+                    "invite" => $this->translate("Invitation"),
+                    "remind" => $this->translate("Reminder"),
+                    "register" => $this->translate("Register"),
+                    "admin_notification" => $this->translate("Admin notification"),
+                    "admin_responses" => $this->translate("Admin detailed response"),
                 ),
                 'current'=>$this->get('nextMessage', 'Survey', $surveyId,null),
             ),
         );
-        $aSettings[$this->_translate("Next survey")] = $aNextSettings;
+        $aSettings[$this->translate("Next survey")] = $aNextSettings;
         $surveyColumnsInformation = new \getQuestionInformation\helpers\surveyColumnsInformation($surveyId,App()->getLanguage());
         $surveyColumnsInformation->ByEmCode = true;
         $surveyColumnsInformation->restrictToType = ['L','O','!'];
@@ -305,21 +306,21 @@ class surveyChaining extends PluginBase {
             'choiceQuestion' => array(
                 'type'=>'select',
                 'htmlOptions'=>array(
-                    'empty'=>$this->_translate("None"),
+                    'empty'=>$this->translate("None"),
                     'options'=>$singleChoicesQuestions['options'],
                 ),
-                'label'=>$this->_translate("Question determining the following survey"),
+                'label'=>$this->translate("Question determining the following survey"),
                 'options'=>$singleChoicesQuestions['data'],
                 'current'=>$this->get('choiceQuestion', 'Survey', $surveyId,null),
-                'help' => $this->_translate("Only single choice question type can be used for survey selection. The list of available answer update after save this settings."),
+                'help' => $this->translate("Only single choice question type can be used for survey selection. The list of available answer update after save this settings."),
             ),
         );
-        $aSettings[$this->_translate("Surveys determined by a question inside this survey")] = $aNextQuestionSettings;
+        $aSettings[$this->translate("Surveys determined by a question inside this survey")] = $aNextQuestionSettings;
 
         /* Text for default */
-        $sDefaultText = $this->_translate("None");
+        $sDefaultText = $this->translate("None");
         if(!empty($oNextSurvey)) {
-            $sDefaultText = $this->_translate("Current default");
+            $sDefaultText = $this->translate("Current default");
         }
         if($this->get('choiceQuestion', 'Survey', $surveyId,null)) {
             $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
@@ -337,40 +338,40 @@ class surveyChaining extends PluginBase {
                             'htmlOptions' => array(
                                 'empty' => $sDefaultText,
                             ),
-                            'label' => $this->_translate("Next survey according to the choice"),
+                            'label' => $this->translate("Next survey according to the choice"),
                             'options' =>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                             'current'=> intval($this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                             'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                         ),
                         'findExistingLink_'.$code => array(
                             'type' => 'boolean',
-                            'label' => $this->_translate("Update existing response if exist."),
+                            'label' => $this->translate("Update existing response if exist."),
                             'current'=>$this->get('findExistingLink_'.$code, 'Survey', $surveyId,1),
                         ),
                         'nextEmail_'.$code => array(
                             'type' => 'string',
-                            'label' => $this->_translate("Send email to"),
-                            'help' => $this->_translate("You can use Expression Manager with question code"),
+                            'label' => $this->translate("Send email to"),
+                            'help' => $this->translate("You can use Expression Manager with question code"),
                             'current'=>$this->get('nextEmail_'.$code, 'Survey', $surveyId,null),
 
                         ),
                         'nextMessage_'.$code => array(
                             'type' => 'select',
-                            'label' => $this->_translate("Mail template to use"),
+                            'label' => $this->translate("Mail template to use"),
                             'htmlOptions'=>array(
-                                'empty'=>$this->_translate("Invitation (Default)"),
+                                'empty'=>$this->translate("Invitation (Default)"),
                             ),
                             'options'=>array(
-                                "invite" => $this->_translate("Invitation"),
-                                "remind" => $this->_translate("Reminder"),
-                                "register" => $this->_translate("Register"),
-                                "admin_notification" => $this->_translate("Admin notification"),
-                                "admin_responses" => $this->_translate("Admin detailed response"),
+                                "invite" => $this->translate("Invitation"),
+                                "remind" => $this->translate("Reminder"),
+                                "register" => $this->translate("Register"),
+                                "admin_notification" => $this->translate("Admin notification"),
+                                "admin_responses" => $this->translate("Admin detailed response"),
                             ),
                             'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
                         ),
                     );
-                    $aSettings[sprintf($this->_translate("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($answer,1,60,"…"))] = $aNextSettings;
+                    $aSettings[sprintf($this->translate("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($answer,1,60,"…"))] = $aNextSettings;
                 }
             }
 
@@ -432,7 +433,7 @@ class surveyChaining extends PluginBase {
         $aData=array();
         $aData['warningString'] = null;
         if(!Yii::getPathOfAlias('getQuestionInformation')) {
-            $aData['warningString'] = sprintf($this->_translate("You must add an activate %s for this plugin."),"<a href='https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation'>getQuestionInformation</a>");
+            $aData['warningString'] = sprintf($this->translate("You must add an activate %s for this plugin."),"<a href='https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation'>getQuestionInformation</a>");
         }
         $aSettings=array();
         /* Basic settings */
@@ -448,44 +449,44 @@ class surveyChaining extends PluginBase {
             'nextSurvey' => array(
                 'type'=>'select',
                 'htmlOptions'=>array(
-                    'empty'=>$this->_translate("None"),
+                    'empty'=>$this->translate("None"),
                 ),
-                'label'=>$this->_translate("Next survey (by default)."),
+                'label'=>$this->translate("Next survey (by default)."),
                 'options'=>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                 'current'=>$this->get('nextSurvey', 'Survey', $surveyId,null),
                 'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey', 'Survey', $surveyId,null)),
             ),
             'findExistingLink' => array(
                 'type' => 'boolean',
-                'label' => $this->_translate("Update existing response if exist."),
-                'help' => $this->_translate("If you check this settings and a chain already exist with this respone, previous response was updated, else a new empty response was updated. If you want to keep history : disable this setting."),
+                'label' => $this->translate("Update existing response if exist."),
+                'help' => $this->translate("If you check this settings and a chain already exist with this respone, previous response was updated, else a new empty response was updated. If you want to keep history : disable this setting."),
                 'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
                 'current'=>$this->get('findExistingLink', 'Survey', $surveyId,1),
             ),
             'nextEmail' => array(
                 'type' => 'string',
-                'label' => $this->_translate("Send email to"),
-                'help' => $this->_translate("You can use Expression Manager with question code"),
+                'label' => $this->translate("Send email to"),
+                'help' => $this->translate("You can use Expression Manager with question code"),
                 'current'=>$this->get('nextEmail', 'Survey', $surveyId,null),
 
             ),
             'nextMessage' => array(
                 'type' => 'select',
-                'label' => $this->_translate("Mail template to use"),
+                'label' => $this->translate("Mail template to use"),
                 'htmlOptions'=>array(
-                    'empty'=>$this->_translate("Invitation (Default)"),
+                    'empty'=>$this->translate("Invitation (Default)"),
                 ),
                 'options'=>array(
-                    "invite" => $this->_translate("Invitation"),
-                    "remind" => $this->_translate("Reminder"),
-                    "register" => $this->_translate("Register"),
-                    "admin_notification" => $this->_translate("Admin notification"),
-                    "admin_responses" => $this->_translate("Admin detailed response"),
+                    "invite" => $this->translate("Invitation"),
+                    "remind" => $this->translate("Reminder"),
+                    "register" => $this->translate("Register"),
+                    "admin_notification" => $this->translate("Admin notification"),
+                    "admin_responses" => $this->translate("Admin detailed response"),
                 ),
                 'current'=>$this->get('nextMessage', 'Survey', $surveyId,null),
             ),
         );
-        $aSettings[$this->_translate("Next survey")] = $aNextSettings;
+        $aSettings[$this->translate("Next survey")] = $aNextSettings;
         $oQuestionCriteria = new CDbCriteria();
         $oQuestionCriteria->condition = "t.sid =:sid and t.language=:language and parent_qid = 0";
         $oQuestionCriteria->params = array(":sid"=>$surveyId,":language"=>$oSurvey->language);
@@ -497,24 +498,24 @@ class surveyChaining extends PluginBase {
             'choiceQuestion' => array(
                 'type'=>'select',
                 'htmlOptions'=>array(
-                    'empty'=>$this->_translate("None"),
+                    'empty'=>$this->translate("None"),
                 ),
-                'label'=>$this->_translate("Question determining the following survey"),
+                'label'=>$this->translate("Question determining the following survey"),
                 'options'=>CHtml::listData($oaQuestion,'title',
                     function($oQuestion) {
                         return "[".$oQuestion->title."] ".viewHelper::flatEllipsizeText($oQuestion->question,1,40,"…");
                     }
                 ),
                 'current'=>$this->get('choiceQuestion', 'Survey', $surveyId,null),
-                'help' => $this->_translate("Only single choice question type can be used for survey selection. The list of available answer update after save this settings."),
+                'help' => $this->translate("Only single choice question type can be used for survey selection. The list of available answer update after save this settings."),
             ),
         );
-        $aSettings[$this->_translate("Surveys determined by a question inside this survey")] = $aNextQuestionSettings;
+        $aSettings[$this->translate("Surveys determined by a question inside this survey")] = $aNextQuestionSettings;
 
         /* Text for default */
-        $sDefaultText = $this->_translate("None");
+        $sDefaultText = $this->translate("None");
         if(!empty($oNextSurvey)) {
-            $sDefaultText = $this->_translate("Current default");
+            $sDefaultText = $this->translate("Current default");
         }
         if($this->get('choiceQuestion', 'Survey', $surveyId,null)) {
             $title = $this->get('choiceQuestion', 'Survey', $surveyId,null);
@@ -532,47 +533,47 @@ class surveyChaining extends PluginBase {
                         'htmlOptions' => array(
                             'empty' => $sDefaultText,
                         ),
-                        'label' => $this->_translate("Next survey according to the choice"),
+                        'label' => $this->translate("Next survey according to the choice"),
                         'options' =>CHtml::listData($aWholeSurveys,'sid','defaultlanguage.surveyls_title'),
                         'current'=> intval($this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                         'help' => $this->_getHelpFoSurveySetting($surveyId,$this->get('nextSurvey_'.$code, 'Survey', $surveyId,null)),
                     ),
                     'findExistingLink_'.$code => array(
                         'type' => 'boolean',
-                        'label' => $this->_translate("Update existing response if exist."),
+                        'label' => $this->translate("Update existing response if exist."),
                         'current'=>$this->get('findExistingLink_'.$code, 'Survey', $surveyId,1),
                     ),
                     'nextEmail_'.$code => array(
                         'type' => 'string',
-                        'label' => $this->_translate("Send email to"),
-                        'help' => $this->_translate("You can use Expression Manager with question code"),
+                        'label' => $this->translate("Send email to"),
+                        'help' => $this->translate("You can use Expression Manager with question code"),
                         'current'=>$this->get('nextEmail_'.$code, 'Survey', $surveyId,null),
 
                     ),
                     'nextMessage_'.$code => array(
                         'type' => 'select',
-                        'label' => $this->_translate("Mail template to use"),
+                        'label' => $this->translate("Mail template to use"),
                         'htmlOptions'=>array(
-                            'empty'=>$this->_translate("Invitation (Default)"),
+                            'empty'=>$this->translate("Invitation (Default)"),
                         ),
                         'options'=>array(
-                            "invite" => $this->_translate("Invitation"),
-                            "remind" => $this->_translate("Reminder"),
-                            "register" => $this->_translate("Register"),
-                            "admin_notification" => $this->_translate("Admin notification"),
-                            "admin_responses" => $this->_translate("Admin detailed response"),
+                            "invite" => $this->translate("Invitation"),
+                            "remind" => $this->translate("Reminder"),
+                            "register" => $this->translate("Register"),
+                            "admin_notification" => $this->translate("Admin notification"),
+                            "admin_responses" => $this->translate("Admin detailed response"),
                         ),
                         'current'=>$this->get('nextMessage_'.$code, 'Survey', $surveyId,null),
                     ),
                 );
-                $aSettings[sprintf($this->_translate("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->answer,1,60,"…"))] = $aNextSettings;
+                $aSettings[sprintf($this->translate("Next survey for %s (%s)"),$code,viewHelper::flatEllipsizeText($oAnswers->answer,1,60,"…"))] = $aNextSettings;
             }
 
         }
 
         $aData['pluginClass']=get_class($this);
         $aData['surveyId']=$surveyId;
-        $aData['title']=$this->_translate("Survey chaining settings");
+        $aData['title']=$this->translate("Survey chaining settings");
         $aData['aSettings']=$aSettings;
         $aData['assetUrl']=Yii::app()->assetManager->publish(dirname(__FILE__) . '/assetslegacy3LTS/');
 
@@ -638,14 +639,14 @@ class surveyChaining extends PluginBase {
             return;
         }
 
-        $this->log($this->_translate("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
+        $this->log($this->translate("Survey selected for $surveyId : $nextSurvey"),\CLogger::LEVEL_INFO);
         $oNextSurvey = Survey::model()->findByPk($nextSurvey);
         if(!$oNextSurvey) {
-            $this->log($this->_translate("Invalid survey selected for $surveyId (didn't exist)"),\CLogger::LEVEL_WARNING);
+            $this->log($this->translate("Invalid survey selected for $surveyId (didn't exist)"),\CLogger::LEVEL_WARNING);
             return;
         }
         if(!$this->_hasTokenTable($oNextSurvey->sid) && !$this->_reloadAnyResponseExist()) {
-            $this->log($this->_translate("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
+            $this->log($this->translate("Invalid survey selected for $surveyId (No token table) and reloadAnyResponse plugin not installed."),\CLogger::LEVEL_WARNING);
             return;
         }
         $sEmail = $this->_EMProcessString($this->get($nextEmailSetting, 'Survey', $surveyId,""));
@@ -653,7 +654,7 @@ class surveyChaining extends PluginBase {
         $nextCodeToColumn =  array_flip(\getQuestionInformation\helpers\surveyCodeHelper::getAllQuestions($nextSurvey));
         $nextExistingCodeToColumn = array_intersect_key($nextCodeToColumn,$currentResponse);
         if(empty($nextExistingCodeToColumn)) {
-            $this->log($this->_translate("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING);
+            $this->log($this->translate("No question code corresponding for $surveyId"),\CLogger::LEVEL_WARNING);
             return;
         }
         /* Find upload QuestionType */
@@ -700,7 +701,7 @@ class surveyChaining extends PluginBase {
                 $oResponse->save(true , array('submitdate'));
             }
             if(empty($oResponse)) {
-                $this->log($this->_translate("A chaining between $surveyId and $nextSurvey but {$chainingResponseLink->nextsrid} not found. We delete all links."),\CLogger::LEVEL_WARNING);
+                $this->log($this->translate("A chaining between $surveyId and $nextSurvey but {$chainingResponseLink->nextsrid} not found. We delete all links."),\CLogger::LEVEL_WARNING);
                 \surveyChaining\models\chainingResponseLink::model()->deleteAll(
                     "prevsid = :prevsid AND nextsid = :nextsid AND prevsrid = :prevsrid",
                     array(':prevsid'=>$nextSurvey,':nextsid'=>$surveyId,':prevsrid'=>$responseId)
@@ -1118,7 +1119,7 @@ class surveyChaining extends PluginBase {
                 if(SendEmailMessage($sMessage, $sSubject, $sEmail, $sFrom, App()->getConfig("sitename"), $useHtmlEmail, $sBounce)) {
                     $sended = true;
                 } else {
-                    $this->log($this->_translate("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR);
+                    $this->log($this->translate("Unable to send email with debug : {$maildebug}"),\CLogger::LEVEL_ERROR);
                 }
             }
         }
@@ -1152,7 +1153,7 @@ class surveyChaining extends PluginBase {
                 }
             }
             if(!empty($originalEmail) && count($aEmails) != count($aFixedEmails)) {
-                $this->log($this->_translate("Invalid email adress in $originalEmail"),\CLogger::LEVEL_ERROR);
+                $this->log($this->translate("Invalid email adress in $originalEmail"),\CLogger::LEVEL_ERROR);
             }
             if(!empty($aFixedEmails)) {
                 $oToken->email = implode(";",$aFixedEmails);
@@ -1165,7 +1166,7 @@ class surveyChaining extends PluginBase {
         }
         $oToken->language = $language;
         if(!$oToken->save()) {
-            $this->log($this->_translate("Unable to create token for $nextSurvey"),\CLogger::LEVEL_ERROR);
+            $this->log($this->translate("Unable to create token for $nextSurvey"),\CLogger::LEVEL_ERROR);
             return null;
         }
         return $oToken;
@@ -1204,7 +1205,7 @@ class surveyChaining extends PluginBase {
       $this->set('dbversion',$this->dbversion);
       Notification::broadcast(array(
           'title' => gT('Database update'),
-          'message' => sprintf($this->_translate('The database for plugin %s has been created (version %s).'),get_class($this),$this->dbversion),
+          'message' => sprintf($this->translate('The database for plugin %s has been created (version %s).'),get_class($this),$this->dbversion),
           'display_class' => 'success',
       ),User::model()->getSuperAdmins());
       $this->log(sprintf('The database for plugin %s has been created (version %s).',get_class($this),$this->dbversion),\CLogger::LEVEL_INFO);
@@ -1214,7 +1215,7 @@ class surveyChaining extends PluginBase {
     $this->set('dbversion',$this->dbversion);
     Notification::broadcast(array(
         'title' => gT('Database update'),
-        'message' => sprintf($this->_translate('The database for plugin %s has been upgraded to version %s.'),get_class($this),$this->dbversion),
+        'message' => sprintf($this->translate('The database for plugin %s has been upgraded to version %s.'),get_class($this),$this->dbversion),
         'display_class' => 'success',
     ),User::model()->getSuperAdmins());
     $this->log(sprintf('The database for plugin %s has been upgraded to version %s.',get_class($this),$this->dbversion),\CLogger::LEVEL_INFO);
@@ -1233,21 +1234,21 @@ class surveyChaining extends PluginBase {
         }
         $oNextSurvey = Survey::model()->findByPk($selectedSurveyId);
         if(!$oNextSurvey) {
-            return CHtml::tag("div",array('class'=>"text-warning"),$this->_translate("Warning : previous survey selected don't exist currently."));
+            return CHtml::tag("div",array('class'=>"text-warning"),$this->translate("Warning : previous survey selected don't exist currently."));
         }
         $aStringReturn = array();
-        $surveyLink = CHtml::link($this->_translate("survey selected"),array('admin/survey/sa/view','surveyid'=>$selectedSurveyId));
+        $surveyLink = CHtml::link($this->translate("survey selected"),array('admin/survey/sa/view','surveyid'=>$selectedSurveyId));
         if(!$this->_hasTokenTable($oNextSurvey->sid) && !$this->_reloadAnyResponseExist()) {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->_translate("Warning : current %s don't have token table, you must enable token before."),$surveyLink));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->translate("Warning : current %s don't have token table, you must enable token before."),$surveyLink));
         }
         if($this->_hasTokenTable($oNextSurvey->sid) && $oNextSurvey->tokenanswerspersistence!="Y" && $this->_reloadAnyResponseExist()) {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->_translate("Warning : current %s don't have token answer persistance enable."),$surveyLink));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->translate("Warning : current %s don't have token answer persistance enable."),$surveyLink));
         }
         $aSameCodes = $this->_getSameCodes($surveyId,$selectedSurveyId);
         if(empty($aSameCodes)) {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->_translate("Warning : %s and current survey didn't have any correspondig question."),$surveyLink));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-danger"),sprintf($this->translate("Warning : %s and current survey didn't have any correspondig question."),$surveyLink));
         } else {
-            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->_translate("The %s and current survey have this correspondig question: %s"),$surveyLink,implode(", ",$aSameCodes)));
+            $aStringReturn[] = CHtml::tag("div",array('class'=>"text-info"),sprintf($this->translate("The %s and current survey have this correspondig question: %s"),$surveyLink,implode(", ",$aSameCodes)));
             /* Find if answersAsReadonly is activated */
             $oAnswersAsReadonly = Plugin::model()->find("name = :name",array(":name"=>'answersAsReadonly'));
             if ($oAnswersAsReadonly && $oAnswersAsReadonly->active) {
@@ -1255,16 +1256,16 @@ class surveyChaining extends PluginBase {
                 /* @todo : control if user have permission on $selectedSurveyId */
                 if(Permission::model()->hasSurveyPermission($selectedSurveyId,'surveysettings','update')){
                     $aStringReturn[] = CHtml::link(
-                        $this->_translate("Set common question to read only"),
+                        $this->translate("Set common question to read only"),
                         array("plugins/direct",'plugin' => get_class(),'sid'=>$surveyId,'destsid'=>$selectedSurveyId),
                         array('class'=>'btn btn-warning btn-xs ajax-surveychaining')
                     );
                 } else {
-                    $aStringReturn[] = CHtml::tag("div",array('class'=>"text-warning"),$this->_translate("Warning : You don't have enough permission on selected survey."));
+                    $aStringReturn[] = CHtml::tag("div",array('class'=>"text-warning"),$this->translate("Warning : You don't have enough permission on selected survey."));
                 }
                 //~ $url = Yii::app()->createUrl("plugins/direct", array('plugin' => get_class(),'sid'=>$surveyId));
                 //~ $aStringReturn[] = CHtml::htmlButton(
-                    //~ $this->_translate("Set common question to read only"),
+                    //~ $this->translate("Set common question to read only"),
                     //~ array('class'=>'btn btn-warning btn-xs ajax-surveychaining','data-url'=>$url)//)
                 //~ );
             }
@@ -1317,7 +1318,7 @@ class surveyChaining extends PluginBase {
    * @param string language, current by default
    * @return string
    */
-    private function _translate($string, $sEscapeMode = 'unescaped', $sLanguage = null)
+    private function translate($string, $sEscapeMode = 'unescaped', $sLanguage = null)
     {
         if(is_callable(array($this, 'gT'))) {
             return $this->gT($string,$sEscapeMode,$sLanguage);
