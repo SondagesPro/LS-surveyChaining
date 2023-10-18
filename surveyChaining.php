@@ -3,10 +3,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018-2022 Denis Chenu <http://www.sondages.pro>
+ * @copyright 2018-2023 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.2
+ * @version 1.3.3
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -897,9 +897,11 @@ class surveyChaining extends PluginBase {
         /* Replace specific word for rwsubject and rawbody */
         $specificReplace = array(
             '{SURVEYURL}' => '{SURVEYCHAININGURL}',
-            '%%SURVEYURL%%' => '%%SURVEYCHAININGURL%%',
+            '%%SURVEYURL%%' => '{RAWSURVEYCHAININGURL}',
+            '{SURVEYIDURL}' => '{SURVEYCHAININGURL}',
+            '%%SURVEYIDURL%%' => '{RAWSURVEYCHAININGURL}',
         );
-        $mailer->addUrlsPlaceholders('SURVEYCHAININGURL');
+        $mailer->addUrlsPlaceholders('SURVEYCHAININGURL'); // Didn't work in 5.6.40, issue in LimeMailer
         $mailer->rawSubject = str_replace(
             array_keys($specificReplace),
             $specificReplace,
@@ -910,7 +912,12 @@ class surveyChaining extends PluginBase {
             $specificReplace,
             $aSurveyInfo['email_' . $mailType]
         );
-        $mailer->aReplacements["SURVEYURL"] = $mailer->aReplacements["SURVEYCHAININGURL"] = $responseLink->getStartUrl();
+        $url = $responseLink->getStartUrl();
+        $mailer->aReplacements["SURVEYURL"] = $mailer->aReplacements["SURVEYCHAININGURL"] = $url;
+        $mailer->aReplacements["RAWSURVEYCHAININGURL"] = $url;
+        if ($mailer->getIsHtml()) {
+            $mailer->aReplacements["SURVEYCHAININGURL"] = CHtml::link($url, $url);
+        }
         $mailer->setTo($sEmail);
         $success = $mailer->sendMessage();
         if ($success) {
@@ -991,12 +998,14 @@ class surveyChaining extends PluginBase {
         $mailer->replaceTokenAttributes = true;
         $mailer->setToken($oToken->token);
         $aSurveyInfo = getSurveyInfo($nextSurvey, $oToken->language);
-        /* Replace specific word for rwsubject and rawbody */
+        /* Replace specific word for rawsubject and rawbody */
         $specificReplace = array(
             '{SURVEYURL}' => '{SURVEYCHAININGURL}',
-            '%%SURVEYURL%%' => '%%SURVEYCHAININGURL%%',
+            '%%SURVEYURL%%' => '{RAWSURVEYCHAININGURL}',
+            '{SURVEYIDURL}' => '{SURVEYCHAININGURL}',
+            '%%SURVEYIDURL%%' => '{RAWSURVEYCHAININGURL}',
         );
-        $mailer->addUrlsPlaceholders('SURVEYCHAININGURL');
+        $mailer->addUrlsPlaceholders('SURVEYCHAININGURL'); // Didn't work in 5.6.40, issue in LimeMailer
         $mailer->rawSubject = str_replace(
             array_keys($specificReplace),
             $specificReplace,
@@ -1007,7 +1016,7 @@ class surveyChaining extends PluginBase {
             $specificReplace,
             $aSurveyInfo['email_' . $mailType]
         );
-        $mailer->aReplacements["SURVEYURL"] = $mailer->aReplacements["SURVEYCHAININGURL"] = App()->getController()->createAbsoluteUrl(
+        $url = App()->getController()->createAbsoluteUrl(
             "survey/index",
             array(
                 'sid' => $nextSurvey,
@@ -1016,6 +1025,11 @@ class surveyChaining extends PluginBase {
                 'srid' => $srid
             )
         );
+        $mailer->aReplacements["SURVEYURL"] = $mailer->aReplacements["SURVEYCHAININGURL"] = $url;
+        $mailer->aReplacements["RAWSURVEYCHAININGURL"] = $url;
+        if ($mailer->getIsHtml()) {
+            $mailer->aReplacements["SURVEYCHAININGURL"] = CHtml::link($url, $url);
+        }
         $success = $mailer->sendMessage();
         if ($success) {
             /* @todo did we need to test sent ? */
