@@ -282,7 +282,7 @@ class surveyChaining extends PluginBase {
             'nextMessage' => array(
                 'type' => 'select',
                 'label' => $this->translate("Mail template to use"),
-                'help' => $this->translate("Mail template from the next survey. If a condition is defined: template depends on the condition."),
+                'help' => $this->translate("Mail template from the next survey. If a condition is defined: template depends on the condition. {SURVEYURL} will be replaced by the link to the next survey."),
                 'htmlOptions'=>array(
                     'empty'=>$this->translate("Invitation (Default)"),
                 ),
