@@ -6,7 +6,7 @@
  * @copyright 2018-2023 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.3
+ * @version 1.3.4
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -762,9 +762,9 @@ class surveyChaining extends PluginBase {
         foreach($nextExistingCodeToColumn as $code=>$column) {
             $oResponse->$column = $currentResponse[$code];
         }
-        /* Add seed */
+        /* Default column */
         if (!empty($currentResponse['seed'])) {
-            $oResponse->seed = 'seed';
+            $oResponse->seed = $currentResponse['seed'];
         }
         $oResponse->startlanguage = App()->getLanguage();
         if($oToken && !$oNextSurvey->getIsAnonymized()) {
