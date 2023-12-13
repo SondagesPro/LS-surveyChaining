@@ -7,7 +7,7 @@
  * @copyright 2018-2023 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.5
+ * @version 1.3.6
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -128,7 +128,7 @@ class surveyChaining extends PluginBase
             );
         }
         $this->_renderJson(array(
-            'success' => sprintf($this->translate("Question(s) %s are set to readonly"), implode(',', array_keys($aQidDones))),
+            'success' => sprintf($this->translate("Question(s) %s are set to readonly"), implode(',', $aQidDones)),
             'error' => null
         ));
     }

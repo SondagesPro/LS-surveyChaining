@@ -35,7 +35,7 @@ Issue must be posted with complete information : LimeSurvey version and build nu
 
 ## Home page & Copyright
 - HomePage <https://extensions.sondages.pro/>
-- Copyright © 2018-2020 Denis Chenu <http://sondages.pro>
+- Copyright © 2018-2023 Denis Chenu <http://sondages.pro>
 - Copyright © 2018 DRAAF Bourgogne - Franche-Comté <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
 - Licence : GNU General Public License <https://www.gnu.org/licenses/gpl-3.0.html>
 - [Donate](https://support.sondages.pro/open.php?topicId=12), [Liberapay](https://liberapay.com/SondagesPro/), [OpenCollective](https://opencollective.com/sondagespro) 
