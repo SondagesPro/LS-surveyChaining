@@ -8,7 +8,7 @@
         <author>Denis Chenu</author>
         <authorUrl>https://extensions.sondages.pro/</authorUrl>
         <supportUrl>https://support.sondages.pro/</supportUrl>
-        <version>1.3.5</version>
+        <version>1.3.7</version>
         <license>GNU Affero General Public License v3.0</license>
         <description><![CDATA[Chaining one survey with another one.]]></description>
     </metadata>

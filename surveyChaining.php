@@ -7,7 +7,7 @@
  * @copyright 2018-2023 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.6
+ * @version 1.3.7
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -968,7 +968,7 @@ class surveyChaining extends PluginBase
         $aReplacements = array();
         $aReplacements["SURVEYURL"] = $responseLink->getStartUrl();
         $this->log("Try to send an email to $sEmail for $nextSurvey with responseLink", \CLogger::LEVEL_INFO);
-        if ($this->_sendSurveyChainingEmail($nextSurvey, $sEmail, Yii::app()->getLanguage(), $mailType, $aReplacements)) {
+        if ($this->_sendSurveyChainingEmailLegacy3LTS($nextSurvey, $sEmail, Yii::app()->getLanguage(), $mailType, $aReplacements)) {
             return true;
         }
         return false;
@@ -1056,7 +1056,7 @@ class surveyChaining extends PluginBase
             $aReplacements[strtoupper($attribute)] = $value;
         }
         $aReplacements["SURVEYURL"] = Yii::app()->getController()->createAbsoluteUrl("/survey/index", array('sid' => $nextSurvey,'lang' => $sLanguage,'token' => $sToken,'srid' => $srid));
-        if ($this->_sendSurveyChainingEmail($nextSurvey, $oToken->email, $sLanguage, $mailType, $aReplacements)) {
+        if ($this->_sendSurveyChainingEmailLegacy3LTS($nextSurvey, $oToken->email, $sLanguage, $mailType, $aReplacements)) {
             /* @todo did we need to test sent ? */
             $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
             $oToken->save(true, ['sent']);
