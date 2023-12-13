@@ -923,7 +923,7 @@ class surveyChaining extends PluginBase
             if ($oToken) {
                 /* @todo did we need to test sent ? */
                 $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
-                $oToken->save();
+                $oToken->save(true, ['sent']);
             }
             return true;
         }
@@ -1033,7 +1033,7 @@ class surveyChaining extends PluginBase
         if ($success) {
             /* @todo did we need to test sent ? */
             $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
-            $oToken->save();
+            $oToken->save(true, ['sent']);
             return true;
         }
         return false;
@@ -1059,7 +1059,7 @@ class surveyChaining extends PluginBase
         if ($this->_sendSurveyChainingEmail($nextSurvey, $oToken->email, $sLanguage, $mailType, $aReplacements)) {
             /* @todo did we need to test sent ? */
             $oToken->sent = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i", App()->getConfig("timeadjust"));
-            $oToken->save();
+            $oToken->save(true, ['sent']);
             return true;
         }
         return false;
@@ -1180,7 +1180,7 @@ class surveyChaining extends PluginBase
         }
         $oToken->language = $language;
         if (!$oToken->save()) {
-            $this->log($this->translate("Unable to create token for $nextSurvey"), \CLogger::LEVEL_ERROR);
+            $this->log($this->translate("Unable to create token for nextSurvey"), \CLogger::LEVEL_ERROR);
             return null;
         }
         return $oToken;

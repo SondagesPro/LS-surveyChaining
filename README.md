@@ -7,7 +7,9 @@ Current purpose is validation of survey by another person.
 - *This plugin is compatible and tested with 3.18 version*
 - This plugin can can be tested in 2.73 version, this was not tested.
 
-## Installtion
+**Warning** This plugin was not compatible with crypted token attribute. This plugin was not tested with crypted question.
+
+## Installation
 
 You **need** [getQuestionInformation](https://gitlab.com/SondagesPro/coreAndTools/getQuestionInformation) plugin activated.
 
