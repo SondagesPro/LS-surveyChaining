@@ -7,7 +7,7 @@
  * @copyright 2018-2023 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.7
+ * @version 1.3.8
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -897,8 +897,10 @@ class surveyChaining extends PluginBase
         $specificReplace = array(
             '{SURVEYURL}' => '{SURVEYCHAININGURL}',
             '%%SURVEYURL%%' => '{RAWSURVEYCHAININGURL}',
+            '@@SURVEYURL@@' => '{RAWSURVEYCHAININGURL}',
             '{SURVEYIDURL}' => '{SURVEYCHAININGURL}',
             '%%SURVEYIDURL%%' => '{RAWSURVEYCHAININGURL}',
+            '@@SURVEYIDURL@@' => '{RAWSURVEYCHAININGURL}',
         );
         $mailer->addUrlsPlaceholders('SURVEYCHAININGURL'); // Didn't work in 5.6.40, issue in LimeMailer
         $mailer->rawSubject = str_replace(

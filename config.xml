@@ -4,11 +4,11 @@
         <name>surveyChaining</name>
         <type>plugin</type>
         <creationDate>2018-04-03</creationDate>
-        <lastUpdate>2023-12-13</lastUpdate>
+        <lastUpdate>2023-12-22</lastUpdate>
         <author>Denis Chenu</author>
         <authorUrl>https://extensions.sondages.pro/</authorUrl>
         <supportUrl>https://support.sondages.pro/</supportUrl>
-        <version>1.3.7</version>
+        <version>1.3.8</version>
         <license>GNU Affero General Public License v3.0</license>
         <description><![CDATA[Chaining one survey with another one.]]></description>
     </metadata>
