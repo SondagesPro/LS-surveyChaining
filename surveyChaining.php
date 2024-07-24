@@ -4,10 +4,10 @@
  * Chaining survey
  *
  * @author Denis Chenu <denis@sondages.pro>
- * @copyright 2018-2023 Denis Chenu <http://www.sondages.pro>
+ * @copyright 2018-2024 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.3.8
+ * @version 1.4.1
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -221,7 +221,7 @@ class surveyChaining extends PluginBase
             $this->set('choiceQuestion', App()->getRequest()->getPost('choiceQuestion'), 'Survey', $surveyId);
             if ($this->get('choiceQuestion', 'Survey', $surveyId, null)) {
                 $title = $this->get('choiceQuestion', 'Survey', $surveyId, null);
-                $oQuestion = Question::model()->find("title=:title", array(":title" => $title));
+                $oQuestion = Question::model()->find("sid=:sid and title=:title", array(":sid" => $surveyId, ":title" => $title));
                 $aoAnswers = Answer::model()->findAll(array(
                     'condition' => "qid=:qid",
                     'order' => 'sortorder ASC',
@@ -410,7 +410,7 @@ class surveyChaining extends PluginBase
             $this->set('choiceQuestion', App()->getRequest()->getPost('choiceQuestion'), 'Survey', $surveyId);
             if ($this->get('choiceQuestion', 'Survey', $surveyId, null)) {
                 $title = $this->get('choiceQuestion', 'Survey', $surveyId, null);
-                $oQuestion = Question::model()->find("title=:title and language=:language", array(":title" => $title,":language" => $oSurvey->language));
+                $oQuestion = Question::model()->find("sid=:sid and title=:title and language=:language", array(":sid" => $surveyId, ":title" => $title,":language" => $oSurvey->language));
                 $aoAnswers = Answer::model()->findAll(array(
                     'condition' => "qid=:qid and language=:language",
                     'order' => 'sortorder ASC',
