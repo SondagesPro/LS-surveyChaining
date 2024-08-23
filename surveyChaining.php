@@ -7,7 +7,7 @@
  * @copyright 2018-2024 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.4.1
+ * @version 1.4.2
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -598,6 +598,9 @@ class surveyChaining extends PluginBase
             return;
         }
         $responseId = $this->getEvent()->get('responseId');
+        if (empty($responseId)) {
+            return;
+        }
         $choiceQuestion = $this->get('choiceQuestion', 'Survey', $surveyId, null);
         $nextEmailSetting = 'nextEmail';
         $nextMessageSetting = 'nextMessage';
@@ -696,9 +699,10 @@ class surveyChaining extends PluginBase
         if ($nextsrid) {
             $oResponse = Response::model($nextSurvey)->findByPk($nextsrid);
             if ($oResponse  && !$oNextSurvey->getIsAllowEditAfterCompletion()) {
-                $oResponse->submitdate = null;
+                $oResponse->submitdate = new CDbExpression('NULL');
                 $oResponse->save(true, array('submitdate'));
             }
+
             if (empty($oResponse)) {
                 $this->log($this->translate("A chaining between $surveyId and $nextSurvey but {$chainingResponseLink->nextsrid} not found. We delete all links."), \CLogger::LEVEL_WARNING);
                 \surveyChaining\models\chainingResponseLink::model()->deleteAll(
@@ -770,7 +774,9 @@ class surveyChaining extends PluginBase
             $oResponse->token = $oToken->token;
         }
         if ($oNextSurvey->datestamp == "Y") {
-            $oResponse->startdate = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
+            if (empty($oResponse->startdate)) {
+                $oResponse->startdate = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
+            }
             $oResponse->datestamp = dateShift(date("Y-m-d H:i:s"), "Y-m-d H:i:s", Yii::app()->getConfig('timeadjust'));
         }
         if (!$oResponse->save()) {
