@@ -7,7 +7,7 @@
  * @copyright 2018-2024 Denis Chenu <http://www.sondages.pro>
  * @copyright 2018 DRAAF Bourgogne-Franche-Comte <http://draaf.bourgogne-franche-comte.agriculture.gouv.fr/>
  * @license GPL v3
- * @version 1.4.2
+ * @version 1.4.3
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE as published by
@@ -925,7 +925,11 @@ class surveyChaining extends PluginBase
         if ($mailer->getIsHtml()) {
             $mailer->aReplacements["SURVEYCHAININGURL"] = CHtml::link($url, $url);
         }
-        $mailer->setTo($sEmail);
+        $aEmail = preg_split('/,|;/', $sEmail);
+        foreach($aEmail as $mail) {
+            $mail = trim($mail);
+            $mailer->addAddress($mail);
+        }
         $success = $mailer->sendMessage();
         if ($success) {
             if ($oToken) {
@@ -1259,7 +1263,10 @@ class surveyChaining extends PluginBase
             return CHtml::tag("div", array('class' => "text-warning"), $this->translate("Warning : previous survey selected don't exist currently."));
         }
         $aStringReturn = array();
-        $surveyLink = CHtml::link($this->translate("survey selected"), array('admin/survey/sa/view','surveyid' => $selectedSurveyId));
+        $surveyLink = CHtml::link($this->translate("survey selected"), array('surveyAdministration/view','iSurveyID' => $selectedSurveyId));
+        if (intval(App()->getConfig('versionnumber')) < 4) {
+            $surveyLink = CHtml::link($this->translate("survey selected"), array('admin/survey/sa/view','surveyid' => $selectedSurveyId));
+        }
         if (!$this->_hasTokenTable($oNextSurvey->sid) && !$this->_reloadAnyResponseExist()) {
             $aStringReturn[] = CHtml::tag("div", array('class' => "text-danger"), sprintf($this->translate("Warning : current %s don't have token table, you must enable token before."), $surveyLink));
         }
@@ -1279,7 +1286,7 @@ class surveyChaining extends PluginBase
                 if (Permission::model()->hasSurveyPermission($selectedSurveyId, 'surveysettings', 'update')) {
                     $aStringReturn[] = CHtml::link(
                         $this->translate("Set common question to read only"),
-                        array("plugins/direct",'plugin' => get_class(),'sid' => $surveyId,'destsid' => $selectedSurveyId),
+                        array("plugins/direct",'plugin' => get_class($this),'sid' => $surveyId,'destsid' => $selectedSurveyId),
                         array('class' => 'btn btn-warning btn-xs ajax-surveychaining')
                     );
                 } else {
