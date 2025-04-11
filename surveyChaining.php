@@ -925,7 +925,7 @@ class surveyChaining extends PluginBase
         if ($mailer->getIsHtml()) {
             $mailer->aReplacements["SURVEYCHAININGURL"] = CHtml::link($url, $url);
         }
-        $aEmail = preg_split('/,|;/', $sEmail);
+        $aEmail =  LimeMailer::validateAddresses(preg_split('/,|;/', trim($sEmail)));
         foreach($aEmail as $mail) {
             $mail = trim($mail);
             $mailer->addAddress($mail);
